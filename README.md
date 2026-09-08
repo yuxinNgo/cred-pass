@@ -1,5 +1,11 @@
 # CredPass
 
+**Live web preview:** https://cred-pass-production.up.railway.app
+
+Hosted on Railway with its own Neon database. Credential storage survives reloads
+within the same browser workspace; Midnight issuance and ZK verification remain
+development demonstrations, not live blockchain operations.
+
 **Current progress: ~30% of the intended credential/ZK product.** The first-pass wallet now includes a follow-up Neon persistence foundation; it is still a demo, not production identity infrastructure.
 
 CredPass explores proving a credential requirement without handing a verifier the full record. Student, Employment, and Professional Certificate credentials live in a card-first wallet with horizontal navigation, details, filters, active/expired status, and empty states. The demo issuer validates and saves new credentials; the verifier returns only `{ "result": "VALID" | "INVALID", "mode": "development" }`.
