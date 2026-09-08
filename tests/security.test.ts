@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { decryptMetadata, encryptMetadata, newWorkspaceToken, readMutation, workspaceOwner } from "../src/services/security";
+import { decryptMetadata, encryptMetadata, mutationOrigin, newWorkspaceToken, readMutation, workspaceOwner } from "../src/services/security";
 
 test("256-bit workspace tokens produce stable nonreversible ownership IDs", () => {
   const token = newWorkspaceToken();
@@ -32,4 +32,13 @@ test("mutations require exact origin, JSON object, and bounded streamed body", a
   const request = (body: string, origin = "https://cred.test", contentType = "application/json") => new Request("https://cred.test/api/wallet", { method: "POST", headers: { origin, "content-type": contentType }, body });
   assert.deepEqual(await readMutation(request('{"action":"clear"}')), { action: "clear" });
   for (const invalid of [request("{}", "https://evil.test"), request("{}", ""), request("{}", "https://cred.test", "text/plain"), request("[]"), request("broken"), request(JSON.stringify({ name: "a".repeat(8192) }))]) await assert.rejects(readMutation(invalid));
+});
+
+test("configured public origin works behind proxies without trusting forwarded host", async () => {
+  const proxyRequest = (origin: string) => new Request("http://internal:8080/api/wallet", { method: "POST", headers: { origin, "x-forwarded-host": "evil.test", "content-type": "application/json" }, body: '{"action":"clear"}' });
+  assert.deepEqual(await readMutation(proxyRequest("https://wallet.test"), "https://wallet.test"), { action: "clear" });
+  await assert.rejects(readMutation(proxyRequest("https://evil.test"), "https://wallet.test"));
+  assert.throws(() => mutationOrigin("http://internal:8080/api/wallet", undefined, true));
+  for (const invalid of ["https://wallet.test/", "https://wallet.test/path", "http://wallet.test", "not-a-url"]) assert.throws(() => mutationOrigin("http://internal:8080", invalid, true));
+  assert.equal(mutationOrigin("http://localhost:3114/api/wallet", undefined, true), "http://localhost:3114");
 });

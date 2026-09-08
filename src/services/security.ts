@@ -28,8 +28,21 @@ export function decryptMetadata(value: string, key: string, binding: string): un
   return JSON.parse(Buffer.concat([decipher.update(Buffer.from(encrypted, "base64")), decipher.final()]).toString("utf8"));
 }
 
-export async function readMutation(request: Request): Promise<Record<string, unknown>> {
-  if (request.headers.get("origin") !== new URL(request.url).origin) throw new RequestError("Same-origin requests only.", 403);
+export function mutationOrigin(requestUrl: string, configured?: string, production = process.env.NODE_ENV === "production") {
+  const incoming = new URL(requestUrl);
+  if (!configured) {
+    if (production && !["localhost", "127.0.0.1", "[::1]"].includes(incoming.hostname)) throw new RequestError("Server origin is not configured.", 503);
+    return incoming.origin;
+  }
+  let canonical: URL;
+  try { canonical = new URL(configured); } catch { throw new RequestError("Server origin is not configured.", 503); }
+  if (canonical.origin !== configured || !["https:", "http:"].includes(canonical.protocol)
+    || (production && canonical.protocol !== "https:" && !["localhost", "127.0.0.1", "[::1]"].includes(canonical.hostname))) throw new RequestError("Server origin is not configured.", 503);
+  return canonical.origin;
+}
+
+export async function readMutation(request: Request, configuredOrigin = process.env.APP_ORIGIN): Promise<Record<string, unknown>> {
+  if (request.headers.get("origin") !== mutationOrigin(request.url, configuredOrigin)) throw new RequestError("Same-origin requests only.", 403);
   if (request.headers.get("content-type")?.split(";")[0].trim() !== "application/json") throw new RequestError("JSON body required.", 415);
   const reader = request.body?.getReader();
   if (!reader) throw new RequestError("JSON body required.");

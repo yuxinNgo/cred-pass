@@ -1,40 +1,50 @@
 # CredPass
 
-**Current progress: ~30%** · First development pass · Local demo only
+**Current progress: ~30% of the intended credential/ZK product.** The first-pass wallet now includes a follow-up Neon persistence foundation; it is still a demo, not production identity infrastructure.
 
-CredPass is a privacy-first credential wallet prototype. Instead of sharing a full student record, employment file, or professional certificate, the intended product lets a holder prove that the required credential exists and is valid. This pass builds the wallet and validates that workflow locally; it does not claim live blockchain privacy.
+CredPass explores proving a credential requirement without handing a verifier the full record. Student, Employment, and Professional Certificate credentials live in a card-first wallet with horizontal navigation, details, filters, active/expired status, and empty states. The demo issuer validates and saves new credentials; the verifier returns only `{ "result": "VALID" | "INVALID", "mode": "development" }`.
 
-## Implemented
+## Durable demo storage
 
-- Responsive, card-first Next.js wallet with a full-width top bar and horizontal navigation; Student, Employment, and Professional Certificate types.
-- Credential cards, type filters, holder-only details, active/expired/revoked domain states, and a working empty state.
-- Demo issuance with type, holder-name, and strict future-date validation.
-- Verification request and holder selection; existence, matching type, issued-at time, expiry, and revoked status are checked.
-- Minimal verifier output: `{ "result": "VALID" | "INVALID", "mode": "development" }`.
-- Isolated `CredentialProofAdapter` and local implementation; no blockchain calls scattered through components.
-- A Compact registration/validity foundation that passes compiler checking with `--skip-zk`.
-- Fourteen runnable tests covering expiration boundaries, malformed data, type mismatch, missing/revoked credentials, future issuance, metadata omission, and the issue → verify → expire lifecycle.
+Next.js Route Handlers use Neon PostgreSQL through `pg` and Drizzle. A module-scoped pool is limited to three connections, with 10-second connection and idle timeouts. On Vercel, the pool is attached to Fluid compute lifecycle handling; it also works on a persistent Railway Node process.
 
-## Privacy and trust model
+Each browser receives a random 256-bit workspace capability in an HttpOnly, SameSite=Lax cookie. The cookie is Secure whenever `NODE_ENV=production`, has path `/`, and expires after 30 days. Only its SHA-256 hash is stored as the database ownership key. Every credential query and mutation is scoped to that key; IDs supplied by another browser do not grant access. Client-supplied owner fields are ignored.
 
-Private metadata has its own field in the credential model. It appears only in the holder details screen and is omitted by construction from the verifier payload. The verifier **UI** is a separate result panel, not a separate security principal or authenticated external application in this pass.
+The first successful wallet load creates a workspace and seeds three fictional credentials in one transaction. Reloading preserves data, including an empty wallet. Clear and restore affect only the current workspace. Issuance locks its workspace row to enforce the 250-credential cap even with concurrent requests.
 
-All data is fictional, held in React memory inside this page session. Navigation preserves issued credentials; a full refresh resets to samples. There is no localStorage, database, credential encryption, login, or secure wallet storage. The browser owner can inspect or alter in-memory data. Do not enter real personal information or rely on the result for access control.
+**Cookie loss, expiry, clearing browser data, or moving to another browser/domain loses access to the old wallet.** There is no recovery/login flow; inaccessible rows remain until an operator removes them. This is anonymous capability-based isolation, not verified user authentication. There is no abuse prevention across unlimited new workspaces; use a protected demo deployment until rate limits and lifecycle cleanup are implemented.
 
-No names, references, or credentials are sent to a verifier service or a blockchain. Local checks are **not ZK proofs**. The app does not connect a wallet, contact a Midnight node, generate proofs, issue signatures, or submit transactions. Network privacy against hosting infrastructure and traffic correlation is not addressed by this prototype.
+## Privacy boundaries — read before using
 
-Expiration is strict: `now < expiresAt`; equality is expired. Dates chosen by the issuer expire at **00:00 UTC at the start of that date**. The demo uses the browser clock, not trusted ledger time. The wallet status refreshes each second; verification evaluates a fresh clock value on submission and is explicitly a point-in-time result.
+- `privateMetadata` (holder name and reference) is encrypted before storage using AES-256-GCM with a fresh 96-bit nonce. Authenticated additional data binds ciphertext to the workspace hash and credential ID. Tampering, wrong keys, or swapping ciphertext between owners/credentials fails closed.
+- **The server holds the encryption key and can decrypt metadata. This is server-readable encrypted demo storage, not end-to-end encryption or a ZK proof.** Use fictional information only.
+- Type, issuer, timestamps, status, IDs, and workspace hash remain plaintext database fields. The holder API returns the current browser’s decrypted metadata over HTTPS for the details screen.
+- The verifier server query selects only validity fields and never fetches/decrypts the metadata column. Its response omits names, references, issuer, credential ID, and all credential metadata.
+- Mutations require an exact same-origin Origin header, JSON object body, and at most 8 KiB of streamed input. Validation occurs server-side before issuance. Database failures return generic errors; secrets and metadata are not logged.
+- Missing database/key configuration shows an unavailable/retry screen. There is **no silent in-memory fallback**. An uncertain failed mutation is not automatically retried; reload the wallet before issuing again to avoid duplicates.
+- The browser owner can inspect holder data and client state. The verifier is a demo view, not a separate authenticated external application. Do not use its result for access control.
 
-## Local setup
+Expiration is strict: `now < expiresAt`; equality means expired. Issuer dates expire at **00:00 UTC at the start of that date**. Wallet labels update from the browser clock; actual verification evaluates existence, type, issuance, expiry, and revoked status using the server clock and persisted fields. Server time is not authenticated ledger time.
 
-Requirements: Node.js 22+ (tested with 24.0.0) and pnpm 10.18.3.
+## Setup
+
+Use Node.js 22+ (tested on 24.0.0) and pnpm 10.18.3. Install with `corepack pnpm install --frozen-lockfile`. Set these **server-only** variables in ignored `.env.local` or your hosting secret manager:
+
+| Variable | Purpose |
+| --- | --- |
+| `DATABASE_URL` | Neon pooled connection URL, with the provider’s TLS parameters |
+| `DATABASE_URL_UNPOOLED` | Direct connection URL for migrations only |
+| `CREDENTIAL_ENCRYPTION_KEY` | Exactly 64 hexadecimal characters encoding a securely generated random 32-byte key |
+| `APP_ORIGIN` | Canonical deployed HTTPS origin with no path/trailing slash; required behind the production reverse proxy |
+
+Never prefix these with `NEXT_PUBLIC_`, put them in `next.config.ts`, commit secrets, or log secrets. `APP_ORIGIN` is server configuration, not a secret; mutation checks compare against it instead of trusting forwarded-host headers. Unset origin falls back to the request origin only in development or localhost. Keep the encryption key stable and backed up; replacing or losing it makes existing metadata unreadable. Key rotation/re-encryption is not implemented. `.env.example` contains empty placeholders only.
 
 ```sh
-corepack pnpm install --frozen-lockfile
+corepack pnpm db:migrate
 corepack pnpm dev
 ```
 
-Open `http://localhost:3000`. No environment secrets or configuration are required. `.env.example` documents the intentionally local-only mode; copying it is optional. If Corepack is unavailable, install the pinned pnpm version using your normal package-manager workflow.
+Open `http://localhost:3000`. The migration uses the direct URL and the checked-in Drizzle SQL/journal, and can safely be run again. To change the schema, edit `src/services/database/schema.ts`, run `corepack pnpm db:generate`, review the generated SQL, and apply it to a development Neon branch first. Runtime requests do not run migrations.
 
 ```sh
 corepack pnpm lint
@@ -44,57 +54,60 @@ corepack pnpm build
 corepack pnpm start
 ```
 
-To use another development port: `corepack pnpm dev --port 3114`.
+The app builds without database/key variables because database setup is lazy and API routes are dynamic. Runtime storage requires them. `next start` listens on `0.0.0.0` and honors the platform’s `PORT` environment variable; use `--port 3114` locally when needed.
 
-## Try the first-pass flow
+## API and integration checks
 
-1. Open `/wallet`: two sample credentials are active until 2030, and one Professional Certificate expired in 2025. Sample status follows real time, not a frozen demo clock.
-2. Open `/issuer`, choose Student, enter a fictional holder name, and choose a future expiration date.
-3. Click **Issue demo credential**, then **View credential**. The holder can see the private metadata.
-4. Click **Use for verification**, then **Verify credential**. The default Student request returns VALID.
-5. Change **Requested credential** to Employment and verify the Student credential again: INVALID.
-6. Select no credential or the expired Professional Certificate: INVALID.
-7. In `/wallet`, **Clear demo wallet** reveals the empty state; **Restore samples** brings the sample data back.
+| Route | Behavior |
+| --- | --- |
+| `GET /api/wallet` | Establish browser workspace; return only its holder credentials; seed once |
+| `POST /api/credentials` | Validated `{type, expiresOn, holderName}` issuance |
+| `POST /api/wallet` | Explicit `{action: "clear" | "restore"}` scoped operation |
+| `POST /api/verify` | `{credentialId, requiredType}`; server-side minimal VALID/INVALID result |
+| `GET /api/health` | Generic DB probe: `{"status":"ok"}` or 503 `{"status":"unavailable"}` |
 
-## Structure
+Responses are no-store; there is no public credential listing. Health intentionally probes connectivity only, not every schema/key requirement.
 
-One Next.js codebase, organized as layered modules—not a frontend/backend split:
+Unit checks cover expiration boundaries, malformed/future dates, type mismatch, missing/revoked credentials, issuance lifecycle, nonce uniqueness, encryption roundtrip/tampering/substitution, workspace tokens, JSON/origin/body limits, and HTTP input validation.
 
-```text
-src/app/                    App Router pages, shell composition, recovery states
-src/modules/credentials/    Credential model, cards, wallet/detail screens
-src/modules/issuers/        Issuance validation and demo issuer screen
-src/modules/verification/   Request/result contract and verification screen
-src/adapters/midnight/      Isolated development proof adapter
-src/store/                 In-memory wallet provider and fictional samples
-src/shared/                Navigation, icons, UTC date presentation
-contracts/                 Independent Compact prototype within this repository
-tests/                     Node test runner + tsx domain and flow checks
+With a running app connected to a **disposable migrated database**, run:
+
+```sh
+corepack pnpm test:integration
 ```
 
-The app uses Next.js 16.3.4, React 19.2.8, TypeScript 5.9.3, Tailwind CSS 4.3.3, ESLint, and pnpm. Styling is a compact graphite/lilac/lime wallet system with no remote font dependency.
+Set `INTEGRATION_BASE_URL` if not `http://localhost:3114`. The integration script creates two temporary workspaces and verifies persistence, plaintext omission in stored metadata, cross-owner isolation, verification output, missing-cookie/foreign-origin rejection, clear/restore, a 250-row cap, and ciphertext substitution rejection. It writes test rows only into those two workspaces and deletes them in `finally`. It requires the same `DATABASE_URL` as the app; do not point it at unrelated data.
 
-## Midnight / Compact status
+## Hosting
 
-| Area | Status |
-| --- | --- |
-| Local credential model, issuance validation, validity checks | Implemented and tested |
-| Minimal verifier payload and replaceable adapter contract | Implemented; development adapter only |
-| Compact registration, existence/type/expiry concepts | Prototype; compiler 0.26.0 / language 0.18.0 `--skip-zk` check passed |
-| Generated proving keys or circuit execution tests | Not done |
-| Private commitments and holder-bound witnesses | Pending |
-| Authenticated issuers and trusted timestamp validation | Pending |
-| Real proof generation, wallet connection, testnet deployment | Pending |
-| Production persistence, security review, external verifier | Pending |
+`railway.json` uses Railpack, `pnpm build`, `pnpm start`, and `/api/health`. Configure the pooled database URL and encryption key as Railway runtime secrets, set `APP_ORIGIN` to the exact HTTPS deployment origin, and run the direct-URL migration as an explicit setup step before deployment. Do not change GitHub/Railway account identity implicitly; each repository is intended to have its own deployment/account ownership.
 
-See [contracts/README.md](contracts/README.md) for the exact compile command and important limitations. The Compact file stores only synthetic public registration data and accepts caller-supplied time; it is not a secure/private credential registry. Compiler success must not be mistaken for production validity.
+Vercel is compatible as an alternative: use the Next.js preset, the same server-only variables, and a separate project. The pool lifecycle helper is enabled only when `VERCEL` exists. No infrastructure is provisioned by the app or build.
 
-The syntax was checked against the official [Compact language reference](https://docs.midnight.network/compact/reference/compact-reference) and [standard-library reference](https://docs.midnight.network/compact/standard-library/exports). The application follows [Next.js App Router installation guidance](https://nextjs.org/docs/app/getting-started/installation).
+## Code organization
 
-## Next milestones
+```text
+src/app/                    App Router pages and same-origin server APIs
+src/modules/credentials/    Model, cards, wallet, holder-only detail views
+src/modules/issuers/        Issuance validation and demo issuer screen
+src/modules/verification/   Request/result contract and verification screen
+src/services/database/     Typed schema, lazy pooled connection, scoped repository
+src/services/              Capability, encryption, HTTP and validation boundaries
+src/adapters/midnight/      Isolated development proof adapter
+src/store/                 Async wallet state and fictional seed data
+src/shared/                Horizontal navigation, icons, UTC date formatting
+drizzle/                   Versioned SQL migration and metadata
+scripts/                   Explicit migration and disposable DB integration checks
+contracts/                 Compact prototype, not connected to runtime storage
+tests/                     Node test runner + tsx
+```
 
-1. Replace synthetic registration with authorized issuer commitments and holder-owned private witnesses; define trusted time and challenge binding.
-2. Implement a real Midnight adapter and circuit execution tests, then test proof generation on a development network.
-3. Add secure holder storage and an authenticated verifier boundary before real personal data enters the system.
+Next.js 16.3.4, React 19.2.8, TypeScript 5.9.3, Tailwind 4.3.3, ESLint, pnpm, PostgreSQL, pg, and Drizzle. One Next.js codebase; no separate backend service.
 
-Full revocation infrastructure, composite multi-credential proofs, identity networks, issuer governance, and advanced selective-disclosure policy remain out of scope for this first pass.
+## Midnight status and next milestones
+
+The development adapter is real tested TypeScript logic, now called by a server route. It does **not** generate proofs or call Midnight. The Compact registration/existence/type/expiry foundation passes compiler 0.26.0 / language 0.18.0 `--skip-zk`, but generated proving keys, circuit execution tests, network deployment, authenticated issuers, private commitments, holder-bound witnesses, trusted time, and verifier-specific challenges remain pending. See [contracts/README.md](contracts/README.md) for its intentionally insecure public demo shape.
+
+Next: authenticated issuer commitments and private witnesses; real adapter/proof testing; authenticated holder recovery and external verifier boundaries; abuse controls and storage cleanup before opening a public service. Full revocation architecture, composite proofs, identity networks, issuer governance, and advanced selective disclosure remain outside this pass.
+
+References: [Compact](https://docs.midnight.network/compact/reference/compact-reference), [Drizzle migrations](https://orm.drizzle.team/docs/migrations), [pg pooling](https://node-postgres.com/apis/pool), [Next.js runtime configuration](https://nextjs.org/docs/app/api-reference/cli/next), [Railway config](https://docs.railway.com/config-as-code/reference).

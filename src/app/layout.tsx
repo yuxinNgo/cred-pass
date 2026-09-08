@@ -5,7 +5,7 @@ import { WalletProvider } from "@/store/wallet";
 
 export const metadata: Metadata = {
   title: "CredPass — Your credentials, your control",
-  description: "A local credential wallet prototype. Prove the requirement, not your identity.",
+  description: "An encrypted demo credential wallet with minimal verification results. Midnight proofs remain a prototype.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
