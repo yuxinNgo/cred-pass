@@ -1,2 +1,2 @@
 import { WalletScreen } from "@/modules/credentials/wallet-screen";
-export default function Home() { return <WalletScreen overview/>; }
+export default function Wallet() { return <WalletScreen/>; }
