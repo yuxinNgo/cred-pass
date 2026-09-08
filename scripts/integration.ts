@@ -16,7 +16,8 @@ async function openWorkspace() {
   const response = await call("/api/wallet");
   assert.equal(response.status, 200);
   const setCookie = response.headers.get("set-cookie");
-  assert.ok(setCookie?.includes("HttpOnly") && /SameSite=lax/i.test(setCookie));
+  assert.ok(setCookie);
+  assert.ok(setCookie.includes("HttpOnly") && /SameSite=lax/i.test(setCookie));
   const cookie = setCookie.split(";")[0];
   owners.push(workspaceOwner(cookie.slice(cookie.indexOf("=") + 1)));
   const data = await response.json() as { credentials: Credential[] };

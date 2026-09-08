@@ -10,7 +10,7 @@ import { Icon } from "@/shared/icon";
 export function CredentialDetail({ id }: { id: string }) {
   const { credentials, now } = useWallet();
   const credential = credentials.find((item) => item.id === id);
-  if (!credential) return <div className="empty-state"><Icon name="wallet" size={36}/><h1>Credential not found</h1><p>This demo credential is missing or the page session has reset.</p><Link href="/wallet" className="button">Back to wallet</Link></div>;
+  if (!credential) return <div className="empty-state"><Icon name="wallet" size={36}/><h1>Credential not found</h1><p>This credential does not exist in your current browser workspace.</p><Link href="/wallet" className="button">Back to wallet</Link></div>;
   const status = credentialStatus(credential, now);
   return <>
     <Link href="/wallet" className="text-link back-link">Back to my credentials</Link>
