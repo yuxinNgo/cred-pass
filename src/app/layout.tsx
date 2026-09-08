@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { Shell } from "@/shared/shell";
 
 export const metadata: Metadata = {
   title: "CredPass — Your credentials, your control",
@@ -7,5 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><body>{children}</body></html>;
+  return <html lang="en"><body><Shell>{children}</Shell></body></html>;
 }
