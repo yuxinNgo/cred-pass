@@ -7,3 +7,6 @@ coverage/
 !.env.example
 contracts/managed/
 next-env.d.ts
+.vercel/
+.neon
+.neon/

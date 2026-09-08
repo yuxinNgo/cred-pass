@@ -1,0 +1,158 @@
+{
+  "id": "96190cbc-d144-4a0a-addf-5875507c84ca",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.credpass_credentials": {
+      "name": "credpass_credentials",
+      "schema": "",
+      "columns": {
+        "owner_hash": {
+          "name": "owner_hash",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id": {
+          "name": "id",
+          "type": "varchar(96)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type": {
+          "name": "type",
+          "type": "credpass_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "issuer": {
+          "name": "issuer",
+          "type": "varchar(160)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "issued_at": {
+          "name": "issued_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "credpass_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "encrypted_metadata": {
+          "name": "encrypted_metadata",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "credpass_credentials_owner_hash_credpass_workspaces_owner_hash_fk": {
+          "name": "credpass_credentials_owner_hash_credpass_workspaces_owner_hash_fk",
+          "tableFrom": "credpass_credentials",
+          "tableTo": "credpass_workspaces",
+          "columnsFrom": [
+            "owner_hash"
+          ],
+          "columnsTo": [
+            "owner_hash"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "credpass_credentials_owner_hash_id_pk": {
+          "name": "credpass_credentials_owner_hash_id_pk",
+          "columns": [
+            "owner_hash",
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "expiry_after_issuance": {
+          "name": "expiry_after_issuance",
+          "value": "\"credpass_credentials\".\"expires_at\" > \"credpass_credentials\".\"issued_at\""
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.credpass_workspaces": {
+      "name": "credpass_workspaces",
+      "schema": "",
+      "columns": {
+        "owner_hash": {
+          "name": "owner_hash",
+          "type": "varchar(64)",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "owner_hash_format": {
+          "name": "owner_hash_format",
+          "value": "\"credpass_workspaces\".\"owner_hash\" ~ '^[a-f0-9]{64}$'"
+        }
+      },
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {
+    "public.credpass_status": {
+      "name": "credpass_status",
+      "schema": "public",
+      "values": [
+        "active",
+        "revoked"
+      ]
+    },
+    "public.credpass_type": {
+      "name": "credpass_type",
+      "schema": "public",
+      "values": [
+        "student",
+        "employment",
+        "professional"
+      ]
+    }
+  },
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}
