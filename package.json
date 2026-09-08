@@ -9,7 +9,7 @@
     "start": "next start",
     "lint": "eslint .",
     "test": "tsx --test tests/*.test.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {
     "next": "16.3.4",
