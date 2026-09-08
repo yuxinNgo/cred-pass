@@ -6,7 +6,7 @@ CredPass is a privacy-first credential wallet prototype. Instead of sharing a fu
 
 ## Implemented
 
-- Responsive Next.js dashboard and credential wallet with Student, Employment, and Professional Certificate types.
+- Responsive, card-first Next.js wallet with a full-width top bar and horizontal navigation; Student, Employment, and Professional Certificate types.
 - Credential cards, type filters, holder-only details, active/expired/revoked domain states, and a working empty state.
 - Demo issuance with type, holder-name, and strict future-date validation.
 - Verification request and holder selection; existence, matching type, issued-at time, expiry, and revoked status are checked.
