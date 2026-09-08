@@ -100,6 +100,21 @@ h3 { font-size: 17px; font-weight: 500; line-height: 1.3; }
 .empty-state > svg { margin: 0 auto 20px; color: var(--lilac); }
 .empty-state h2 { color: #f4f4f6; }
 .empty-state p { margin: 12px 0 20px; }
+.back-link { margin-bottom: 25px; }
+.detail-grid { display: grid; grid-template-columns: minmax(250px, .8fr) minmax(0, 1.2fr); gap: 32px; }
+.detail-grid .credential-card { min-height: 265px; }
+.detail-status { color: var(--lime); }
+.caption { font-size: 11px; color: var(--muted); margin: 15px 0 24px; }
+.full-width { width: 100%; }
+.details-list { margin: 23px 0 0; }
+.details-list > div { display: flex; justify-content: space-between; gap: 20px; padding: 12px 0; border-bottom: 1px solid var(--line); font-size: 12px; }
+.details-list dt { color: var(--muted); flex-shrink: 0; }
+.details-list dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
+.mono { font-family: monospace; font-size: 11px; }
+.private-section { margin-top: 28px; }
+.private-section h3 { display: flex; align-items: center; gap: 9px; color: #d1c2ec; font-size: 13px; }
+.private-section p { font-size: 11px; color: var(--muted); }
+@media(max-width: 980px) { .detail-grid { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) { .credential-card { transition: none; } .credential-card:hover { transform: none; } }
 @media(max-width: 1150px) { .credential-grid { gap: 12px; } .credential-card { padding: 19px; } .card-title h3 { font-size: 16px; } }
 @media(max-width: 980px) { .credential-grid { grid-template-columns: 1fr 1fr; } .overview-stats { grid-template-columns: 1fr 1fr; } .overview-stats .privacy-stat { grid-column: 1/-1; border-top: 1px solid var(--line); padding-top: 18px; } .overview-stats > div:nth-child(2) { border-right: 0; } .dashboard-lower { gap: 25px; } }
