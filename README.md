@@ -6,7 +6,7 @@ Hosted on Railway with its own Neon database. Credential storage survives reload
 within the same browser workspace; Midnight issuance and ZK verification remain
 development demonstrations, not live blockchain operations.
 
-**Current progress: ~30% of the intended credential/ZK product.** The first-pass wallet now includes a follow-up Neon persistence foundation; it is still a demo, not production identity infrastructure.
+**Current progress: ~35% of the intended credential/ZK product (rough scope estimate, not a measured completion metric).** The wallet includes Neon persistence and individual demo revocation; it is still a demo, not production identity infrastructure. These local changes are not deployed by this update.
 
 CredPass explores proving a credential requirement without handing a verifier the full record. Student, Employment, and Professional Certificate credentials live in a card-first wallet with horizontal navigation, details, filters, active/expired status, and empty states. The demo issuer validates and saves new credentials; the verifier returns only `{ "result": "VALID" | "INVALID", "mode": "development" }`.
 
@@ -17,6 +17,12 @@ Next.js Route Handlers use Neon PostgreSQL through `pg` and Drizzle. A module-sc
 Each browser receives a random 256-bit workspace capability in an HttpOnly, SameSite=Lax cookie. The cookie is Secure whenever `NODE_ENV=production`, has path `/`, and expires after 30 days. Only its SHA-256 hash is stored as the database ownership key. Every credential query and mutation is scoped to that key; IDs supplied by another browser do not grant access. Client-supplied owner fields are ignored.
 
 The first successful wallet load creates a workspace and seeds three fictional credentials in one transaction. Reloading preserves data, including an empty wallet. Clear and restore affect only the current workspace. Issuance locks its workspace row to enforce the 250-credential cap even with concurrent requests.
+
+### Individual demo revocation
+
+Open a credential’s details and choose **Revoke demo credential**. The confirmation explains the irreversible change; Cancel leaves the record unchanged. Accept persists `revoked` for that credential and current cookie-owned workspace only. Reloads preserve it, repeated revoke requests are harmless, and there is no individual reactivate operation. Expired credentials can also be revoked. The card/detail status reflects revocation and subsequent server verification returns `INVALID`, even when another tab still holds an active copy. Returned results remain point-in-time demo checks; rerun verification after changes in another tab. Changes to the loaded wallet invalidate the displayed result.
+
+The existing explicit **Restore samples** action replaces the entire current wallet, removing issued credentials and recreating the original sample records with their initial statuses. Thus a revoked sample can reappear as active after this whole-wallet reset. Clear removes all current records. Neither action changes other workspaces. This is owner-controlled demo storage behavior, **not authenticated issuer revocation, a revocation registry, or on-chain Midnight revocation**.
 
 **Cookie loss, expiry, clearing browser data, or moving to another browser/domain loses access to the old wallet.** There is no recovery/login flow; inaccessible rows remain until an operator removes them. This is anonymous capability-based isolation, not verified user authentication. There is no abuse prevention across unlimited new workspaces; use a protected demo deployment until rate limits and lifecycle cleanup are implemented.
 
@@ -68,7 +74,7 @@ The app builds without database/key variables because database setup is lazy and
 | --- | --- |
 | `GET /api/wallet` | Establish browser workspace; return only its holder credentials; seed once |
 | `POST /api/credentials` | Validated `{type, expiresOn, holderName}` issuance |
-| `POST /api/wallet` | Explicit `{action: "clear" | "restore"}` scoped operation |
+| `POST /api/wallet` | Explicit `{action: "clear" | "restore"}` scoped reset, or `{action: "revoke", credentialId}` individual demo revocation; unknown/unowned ID returns 404 |
 | `POST /api/verify` | `{credentialId, requiredType}`; server-side minimal VALID/INVALID result |
 | `GET /api/health` | Generic DB probe: `{"status":"ok"}` or 503 `{"status":"unavailable"}` |
 
@@ -82,7 +88,7 @@ With a running app connected to a **disposable migrated database**, run:
 corepack pnpm test:integration
 ```
 
-Set `INTEGRATION_BASE_URL` if not `http://localhost:3114`. The integration script creates two temporary workspaces and verifies persistence, plaintext omission in stored metadata, cross-owner isolation, verification output, missing-cookie/foreign-origin rejection, clear/restore, a 250-row cap, and ciphertext substitution rejection. It writes test rows only into those two workspaces and deletes them in `finally`. It requires the same `DATABASE_URL` as the app; do not point it at unrelated data.
+Set `INTEGRATION_BASE_URL` if not `http://localhost:3114`. The integration script creates two temporary workspaces and verifies persistence, plaintext omission in stored metadata, cross-owner isolation, verification output, revocation persistence/idempotency and stale-client rejection, missing-cookie/foreign-origin rejection, clear/restore, a 250-row cap, and ciphertext substitution rejection. It writes test rows only into those two workspaces and deletes them in `finally`. It requires the same `DATABASE_URL` as the app; do not point it at unrelated data.
 
 ## Hosting
 
