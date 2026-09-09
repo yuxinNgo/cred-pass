@@ -16,6 +16,7 @@ interface WalletState {
   verify: (input: VerificationRequest) => Promise<VerificationResult>;
   clear: () => Promise<void>;
   restore: () => Promise<void>;
+  revoke: (credentialId: string) => Promise<void>;
 }
 const WalletContext = createContext<WalletState | null>(null);
 
@@ -40,7 +41,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     update();
     return () => clearInterval(timer);
   }, [refresh]);
-  async function mutate(body: IssueInput | { action: "clear" | "restore" }) {
+  async function mutate(body: IssueInput | { action: "clear" | "restore" } | { action: "revoke"; credentialId: string }) {
     if (mutationRunning.current) throw new Error("A wallet update is already in progress.");
     mutationRunning.current = true; setBusy(true);
     try {
@@ -58,7 +59,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     try { await mutate({ action }); }
     catch (error) { setError(error instanceof Error ? error.message : "Unable to update wallet."); }
   }
-  return <WalletContext.Provider value={{ credentials, now, loading, busy, error, retry: () => { void refresh(); }, issue, verify: (input) => walletRequest<VerificationResult>("/api/verify", input), clear: () => changeSamples("clear"), restore: () => changeSamples("restore") }}>{children}</WalletContext.Provider>;
+  return <WalletContext.Provider value={{ credentials, now, loading, busy, error, retry: () => { void refresh(); }, issue, verify: (input) => walletRequest<VerificationResult>("/api/verify", input), clear: () => changeSamples("clear"), restore: () => changeSamples("restore"), revoke: async (credentialId) => { await mutate({ action: "revoke", credentialId }); } }}>{children}</WalletContext.Provider>;
 }
 
 async function walletRequest<T>(url: string, body?: object): Promise<T> {
