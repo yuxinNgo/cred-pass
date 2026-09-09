@@ -11,13 +11,14 @@ export function VerificationScreen({ initialId = "" }: { initialId?: string }) {
   const { credentials, verify: verifyStoredCredential } = useWallet();
   const [requiredType, setRequiredType] = useState<CredentialType>("student");
   const [credentialId, setCredentialId] = useState(initialId);
-  const [result, setResult] = useState<VerificationResult | null>(null);
+  const [checked, setChecked] = useState<{ result: VerificationResult; wallet: typeof credentials } | null>(null);
+  const result = checked?.wallet === credentials ? checked.result : null;
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
   async function verify(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setPending(true); setResult(null); setError("");
-    try { setResult(await verifyStoredCredential({ credentialId, requiredType })); }
+    setPending(true); setChecked(null); setError("");
+    try { setChecked({ result: await verifyStoredCredential({ credentialId, requiredType }), wallet: credentials }); }
     catch { setError("The server could not complete the check. Please try again."); }
     finally { setPending(false); }
   }
@@ -25,10 +26,10 @@ export function VerificationScreen({ initialId = "" }: { initialId?: string }) {
     <div className="page-heading"><div><h1>Prove the requirement.<br/>Not your identity.</h1><p className="intro">A verification sandbox with a deliberately small disclosure surface.</p></div></div>
     <div className="notice">Server-side demo check—not a zero-knowledge proof. The server reads only this workspace’s credential validity fields. No blockchain transaction occurs.</div>
     <div className="verification-grid"><section className="panel"><span className="step-label">01 / HOLDER WORKSPACE</span><h2>Respond to a request</h2><form onSubmit={verify}>
-      <label htmlFor="requiredType">Requested credential</label><select id="requiredType" value={requiredType} disabled={pending} onChange={(event) => { setRequiredType(event.target.value as CredentialType); setResult(null); }}>{credentialTypes.map((type) => <option key={type} value={type}>{typeLabels[type]}</option>)}</select>
+      <label htmlFor="requiredType">Requested credential</label><select id="requiredType" value={requiredType} disabled={pending} onChange={(event) => { setRequiredType(event.target.value as CredentialType); setChecked(null); }}>{credentialTypes.map((type) => <option key={type} value={type}>{typeLabels[type]}</option>)}</select>
       <div className="request-quote">“Prove you hold a valid {typeLabels[requiredType]}.”</div>
-      <label htmlFor="credentialId">Credential to use</label><select id="credentialId" value={credentialId} disabled={pending} onChange={(event) => { setCredentialId(event.target.value); setResult(null); }}><option value="">No credential selected</option>{credentials.map((credential) => <option key={credential.id} value={credential.id}>{typeLabels[credential.type]} · {credential.issuer} · {credential.id.slice(0, 8)}</option>)}</select>
-      <p className="field-help">Selecting none, an expired credential, or a different type returns INVALID.</p>
+      <label htmlFor="credentialId">Credential to use</label><select id="credentialId" value={credentialId} disabled={pending} onChange={(event) => { setCredentialId(event.target.value); setChecked(null); }}><option value="">No credential selected</option>{credentials.map((credential) => <option key={credential.id} value={credential.id}>{typeLabels[credential.type]} · {credential.issuer} · {credential.id.slice(0, 8)}{credential.status === "revoked" ? " · Revoked" : ""}</option>)}</select>
+      <p className="field-help">Selecting none, an expired or revoked credential, or a different type returns INVALID. Run a new check after changes in another tab.</p>
       {credentials.length === 0 && <p className="field-help">Wallet empty. <Link className="text-link" href="/issuer">Issue a demo credential</Link> first, or test the missing-credential result.</p>}
       {error && <p role="alert" className="error">{error}</p>}
       <button type="submit" className="button primary" disabled={pending}><Icon name="shield" size={17}/>{pending ? "Checking credential…" : "Verify credential"}</button>
