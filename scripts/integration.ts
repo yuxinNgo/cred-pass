@@ -57,9 +57,31 @@ async function main() {
     assert.equal((await call("/api/wallet", b, { action: "clear", ownerHash: owners[0] })).status, 200);
     assert.equal((await wallet(b)).length, 0);
     assert.equal((await wallet(a)).length, 4);
+    assert.equal((await call("/api/wallet", a, { action: "revoke", credentialId: issued.id }, "https://other-origin.invalid")).status, 403);
+    assert.equal((await call("/api/wallet", "", { action: "revoke", credentialId: issued.id })).status, 401);
+    for (const credentialId of ["", [], "a".repeat(97)]) assert.equal((await call("/api/wallet", a, { action: "revoke", credentialId })).status, 400);
+    assert.equal((await call("/api/wallet", b, { action: "revoke", credentialId: issued.id, ownerHash: owners[0] })).status, 404);
+    assert.equal((await wallet(a)).find((item) => item.id === issued.id)?.status, "active");
+    assert.equal((await call("/api/wallet", a, { action: "revoke", credentialId: issued.id })).status, 200);
+    assert.equal((await wallet(a)).find((item) => item.id === issued.id)?.status, "revoked");
+    assert.equal((await wallet(a)).length, 4);
+    assert.equal((await wallet(b)).length, 0);
+    const revoked = await call("/api/verify", a, { credentialId: issued.id, requiredType: "student", status: issued.status });
+    assert.deepEqual(await revoked.json(), { result: "INVALID", mode: "development" });
+    assert.equal((await call("/api/wallet", a, { action: "revoke", credentialId: issued.id })).status, 200);
+    assert.equal((await call("/api/wallet", a, { action: "activate", credentialId: issued.id })).status, 400);
+    assert.equal((await wallet(a)).find((item) => item.id === issued.id)?.status, "revoked");
     assert.equal((await call("/api/wallet", b, { action: "restore" })).status, 200);
     assert.equal((await wallet(b)).length, 3);
     assert.equal((await wallet(a)).length, 4);
+    assert.equal((await call("/api/wallet", b, { action: "revoke", credentialId: "northstar-student", ownerHash: owners[0] })).status, 200);
+    assert.equal((await wallet(b)).find((item) => item.id === "northstar-student")?.status, "revoked");
+    assert.equal((await wallet(a)).find((item) => item.id === "northstar-student")?.status, "active");
+    assert.equal((await call("/api/wallet", b, { action: "revoke", credentialId: "design-professional" })).status, 200);
+    assert.equal((await wallet(b)).find((item) => item.id === "design-professional")?.status, "revoked");
+    assert.equal((await call("/api/wallet", b, { action: "restore" })).status, 200);
+    assert.equal((await wallet(b)).find((item) => item.id === "northstar-student")?.status, "active");
+    assert.equal((await wallet(a)).find((item) => item.id === issued.id)?.status, "revoked");
     // Fill only this disposable workspace near the limit to test the real transaction cap.
     await pool.query("INSERT INTO credpass_credentials (owner_hash,id,type,issuer,issued_at,expires_at,status,encrypted_metadata) SELECT owner_hash, 'cap-' || n, type, issuer, issued_at, expires_at, status, encrypted_metadata FROM credpass_credentials CROSS JOIN generate_series(1,246) n WHERE owner_hash=$1 AND id=$2", [owners[0], issued.id]);
     assert.equal((await call("/api/credentials", a, input)).status, 409);
@@ -68,7 +90,7 @@ async function main() {
     assert.equal((await call("/api/wallet", a, { action: "clear" })).status, 200);
     assert.equal((await wallet(a)).length, 0);
     assert.equal((await wallet(b)).length, 3);
-    console.log("PASS: persistence, scoped ownership, encrypted storage, validity, mutation guards, cap, tamper rejection, clear/restore.");
+    console.log("PASS: persistence, scoped ownership, encrypted storage, validity, revocation, mutation guards, cap, tamper rejection, clear/restore.");
   } finally {
     for (const owner of owners) await pool.query("DELETE FROM credpass_workspaces WHERE owner_hash = $1", [owner]);
     await pool.end();

@@ -36,7 +36,7 @@ export async function readWallet(owner: string) {
   });
 }
 
-type WalletMutation = { action: "issue"; credential: Credential } | { action: "clear" | "restore" };
+type WalletMutation = { action: "issue"; credential: Credential } | { action: "revoke"; credentialId: string } | { action: "clear" | "restore" };
 export async function mutateWallet(owner: string, mutation: WalletMutation) {
   const scope = ownerScope(owner);
   encryptionKey();
@@ -48,6 +48,9 @@ export async function mutateWallet(owner: string, mutation: WalletMutation) {
       const [{ total }] = await tx.select({ total: count() }).from(credentials).where(scope);
       if (total >= 250) throw new RequestError("This demo wallet is limited to 250 credentials.", 409);
       await tx.insert(credentials).values(storedCredential(owner, mutation.credential));
+    } else if (mutation.action === "revoke") {
+      const revoked = await tx.update(credentials).set({ status: "revoked" }).where(and(scope, eq(credentials.id, mutation.credentialId))).returning({ id: credentials.id });
+      if (!revoked.length) throw new RequestError("Credential not found in this workspace.", 404);
     } else {
       await tx.delete(credentials).where(scope);
       if (mutation.action === "restore") await tx.insert(credentials).values(demoCredentials.map((credential) => storedCredential(owner, credential)));
