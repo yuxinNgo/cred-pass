@@ -8,9 +8,23 @@ loadEnvConfig(process.cwd());
 const base = process.env.INTEGRATION_BASE_URL ?? "http://localhost:3114";
 const origin = new URL(base).origin;
 const owners: string[] = [];
+const direct = process.argv.includes("--direct");
 
 async function call(path: string, cookie = "", body?: object, customOrigin = origin) {
-  return fetch(`${base}${path}`, { method: body ? "POST" : "GET", headers: { cookie, ...(body ? { "Content-Type": "application/json", Origin: customOrigin } : {}) }, body: body ? JSON.stringify(body) : undefined });
+  const init = { method: body ? "POST" : "GET", headers: { cookie, ...(body ? { "Content-Type": "application/json", Origin: customOrigin } : {}) }, body: body ? JSON.stringify(body) : undefined };
+  if (direct) {
+    const { NextRequest } = await import("next/server");
+    const request = new NextRequest(`${base}${path}`, init);
+    if (path === "/api/wallet") {
+      const route = await import("../src/app/api/wallet/route");
+      return body ? route.POST(request) : route.GET(request);
+    }
+    if (path === "/api/credentials") return (await import("../src/app/api/credentials/route")).POST(request);
+    if (path === "/api/verify") return (await import("../src/app/api/verify/route")).POST(request);
+    if (path === "/api/health") return (await import("../src/app/api/health/route")).GET();
+    throw new Error("Unknown integration route.");
+  }
+  return fetch(`${base}${path}`, { ...init, signal: AbortSignal.timeout(20000) });
 }
 async function openWorkspace() {
   const response = await call("/api/wallet");

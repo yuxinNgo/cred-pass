@@ -90,6 +90,8 @@ corepack pnpm test:integration
 
 Set `INTEGRATION_BASE_URL` if not `http://localhost:3114`. The integration script creates two temporary workspaces and verifies persistence, plaintext omission in stored metadata, cross-owner isolation, verification output, revocation persistence/idempotency and stale-client rejection, missing-cookie/foreign-origin rejection, clear/restore, a 250-row cap, and ciphertext substitution rejection. It writes test rows only into those two workspaces and deletes them in `finally`. It requires the same `DATABASE_URL` as the app; do not point it at unrelated data.
 
+HTTP checks time out after 20 seconds per request. Without a listening app, `node --conditions=react-server --import tsx scripts/integration.ts --direct` runs the same assertions through real Next.js route handlers and the configured database in-process. Set `APP_ORIGIN` to match `INTEGRATION_BASE_URL` (default `http://localhost:3114`). Direct mode does not test HTTP serving or browser behavior.
+
 ## Hosting
 
 `railway.json` uses Railpack, `pnpm build`, `pnpm start`, and `/api/health`. Configure the pooled database URL and encryption key as Railway runtime secrets, set `APP_ORIGIN` to the exact HTTPS deployment origin, and run the direct-URL migration as an explicit setup step before deployment. Do not change GitHub/Railway account identity implicitly; each repository is intended to have its own deployment/account ownership.
