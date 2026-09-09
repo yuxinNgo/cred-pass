@@ -10,3 +10,7 @@ export function verificationInput(body: Record<string, unknown>) {
   if (typeof body.credentialId !== "string" || body.credentialId.length > 96 || !credentialTypes.includes(body.requiredType as CredentialType)) throw new RequestError("Choose a supported credential type and credential.");
   return { credentialId: body.credentialId, requiredType: body.requiredType as CredentialType };
 }
+export function revocationInput(body: Record<string, unknown>) {
+  if (typeof body.credentialId !== "string" || !body.credentialId.trim() || body.credentialId.length > 96) throw new RequestError("Choose a credential to revoke.");
+  return { credentialId: body.credentialId };
+}

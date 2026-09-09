@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { issuanceInput, verificationInput } from "../src/services/validation";
+import { issuanceInput, verificationInput, revocationInput } from "../src/services/validation";
 import { issueCredential } from "../src/modules/issuers/issue";
 
 test("issuance HTTP boundary rejects non-string fields without coercion", () => {
@@ -14,4 +14,8 @@ test("server issuance boundary preserves domain validation for dates, lengths an
 test("verification boundary permits missing-ID invalid scenario but rejects malformed ID/type", () => {
   assert.deepEqual(verificationInput({ credentialId: "", requiredType: "student", privateMetadata: { holderName: "ignored" } }), { credentialId: "", requiredType: "student" });
   for (const body of [{ credentialId: [], requiredType: "student" }, { credentialId: "a".repeat(97), requiredType: "student" }, { credentialId: "demo", requiredType: "admin" }]) assert.throws(() => verificationInput(body));
+});
+test("revocation requires a bounded credential ID and discards owner and status overrides", () => {
+  for (const credentialId of [undefined, "", "  ", [], "a".repeat(97)]) assert.throws(() => revocationInput({ credentialId }));
+  assert.deepEqual(revocationInput({ credentialId: "student-01", ownerHash: "other", status: "active" }), { credentialId: "student-01" });
 });
