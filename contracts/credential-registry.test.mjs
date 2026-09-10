@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { constructorContext, QueryContext, dummyContractAddress } from "@midnight-ntwrk/compact-runtime";
+import { constructorContext, QueryContext, dummyContractAddress, CostModel } from "@midnight-ntwrk/compact-runtime";
 import { Contract, ledger } from "./managed/contract/index.cjs";
 
 const id = new Uint8Array(32).fill(1);
@@ -73,4 +73,19 @@ test("kernel compares nominal ledger seconds even with a nonzero error window", 
   assert.equal(r.call("checkDemoValidity", [id, 0n], issuer, 98n, 1).result, true);
   assert.equal(r.call("checkDemoValidity", [id, 0n], issuer, 99n, 1).result, true);
   assert.equal(r.call("checkDemoValidity", [id, 0n], issuer, 100n, 1).result, false);
+});
+
+test("a valid ledger transcript cannot be replayed at or after expiry", () => {
+  const r = registry();
+  r.call("registerDemoCredential", [id, 0n, 100n]);
+  const valid = r.call("checkDemoValidity", [id, 0n], issuer, 99n, 1);
+  const transcript = { gas: 1000000000n, effects: valid.context.transactionContext.effects,
+    program: valid.proofData.publicTranscript };
+  for (const now of [99n, 100n, 101n]) {
+    const context = new QueryContext(valid.context.transactionContext.state, dummyContractAddress());
+    context.block = { secondsSinceEpoch: now, secondsSinceEpochErr: 1, blockHash: "00".repeat(32) };
+    const replay = () => context.runTranscript(transcript, CostModel.dummyCostModel());
+    if (now === 99n) assert.doesNotThrow(replay);
+    else assert.throws(replay);
+  }
 });
