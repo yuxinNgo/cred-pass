@@ -47,11 +47,30 @@ test("issuer revocation is permanent and rejects strangers and unknown IDs", () 
   const r = registry();
   r.call("registerDemoCredential", [id, 0n, 100n]);
   assert.throws(() => r.call("revokeDemoCredential", [id], stranger), /Unauthorized issuer/);
-  assert.equal(r.call("checkDemoValidity", [id, 0n, 99n]).result, true);
+  assert.equal(r.call("checkDemoValidity", [id, 0n]).result, true);
   assert.throws(() => r.call("revokeDemoCredential", [stranger]), /not registered/);
   r.call("revokeDemoCredential", [id]);
   r.call("revokeDemoCredential", [id]);
-  assert.equal(r.call("checkDemoValidity", [id, 0n, 99n]).result, false);
+  assert.equal(r.call("checkDemoValidity", [id, 0n]).result, false);
   assert.throws(() => r.call("registerDemoCredential", [id, 0n, 200n]), /already registered/);
   assert.equal(r.ledger().revoked.size(), 1n);
+});
+
+test("validity cannot use a caller timestamp to bypass ledger expiration", () => {
+  const r = registry();
+  r.call("registerDemoCredential", [id, 0n, 100n]);
+  assert.throws(() => r.call("checkDemoValidity", [id, 0n, 0n], issuer, 100n), /expected 3 arguments/);
+  assert.equal(r.call("checkDemoValidity", [id, 0n], issuer, 99n).result, true);
+  assert.equal(r.call("checkDemoValidity", [id, 0n], issuer, 100n).result, false);
+  assert.equal(r.call("checkDemoValidity", [id, 0n], issuer, 101n).result, false);
+  assert.equal(r.call("checkDemoValidity", [id, 1n]).result, false);
+  assert.equal(r.call("checkDemoValidity", [stranger, 0n]).result, false);
+});
+
+test("kernel compares nominal ledger seconds even with a nonzero error window", () => {
+  const r = registry();
+  r.call("registerDemoCredential", [id, 0n, 100n]);
+  assert.equal(r.call("checkDemoValidity", [id, 0n], issuer, 98n, 1).result, true);
+  assert.equal(r.call("checkDemoValidity", [id, 0n], issuer, 99n, 1).result, true);
+  assert.equal(r.call("checkDemoValidity", [id, 0n], issuer, 100n, 1).result, false);
 });
