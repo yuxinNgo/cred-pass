@@ -9,6 +9,8 @@
     "start": "next start --hostname 0.0.0.0",
     "lint": "eslint .",
     "test": "tsx --test tests/*.test.ts",
+    "contract:compile": "node scripts/compile-contract.mjs",
+    "test:contract": "pnpm contract:compile && node --test contracts/credential-registry.test.mjs",
     "typecheck": "next typegen && tsc --noEmit",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/migrate.ts",
@@ -25,6 +27,7 @@
     "server-only": "0.0.1"
   },
   "devDependencies": {
+    "@midnight-ntwrk/compact-runtime": "0.9.0",
     "@tailwindcss/postcss": "4.3.3",
     "@types/node": "^24.0.0",
     "@types/pg": "^8.23.1",
