@@ -42,3 +42,16 @@ test("registration requires the constructor issuer secret, not public identity",
   r.call("registerDemoCredential", [id, 0n, 100n]);
   assert.equal(r.ledger().credentials.size(), 1n);
 });
+
+test("issuer revocation is permanent and rejects strangers and unknown IDs", () => {
+  const r = registry();
+  r.call("registerDemoCredential", [id, 0n, 100n]);
+  assert.throws(() => r.call("revokeDemoCredential", [id], stranger), /Unauthorized issuer/);
+  assert.equal(r.call("checkDemoValidity", [id, 0n, 99n]).result, true);
+  assert.throws(() => r.call("revokeDemoCredential", [stranger]), /not registered/);
+  r.call("revokeDemoCredential", [id]);
+  r.call("revokeDemoCredential", [id]);
+  assert.equal(r.call("checkDemoValidity", [id, 0n, 99n]).result, false);
+  assert.throws(() => r.call("registerDemoCredential", [id, 0n, 200n]), /already registered/);
+  assert.equal(r.ledger().revoked.size(), 1n);
+});
