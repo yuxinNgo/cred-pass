@@ -33,3 +33,12 @@ test("compiled registry stores an immutable credential and rejects unsupported t
   assert.throws(() => r.call("registerDemoCredential", [stranger, 3n, 100n]), /Unsupported/);
   assert.equal(r.ledger().credentials.size(), 1n);
 });
+
+test("registration requires the constructor issuer secret, not public identity", () => {
+  const r = registry();
+  assert.throws(() => r.call("registerDemoCredential", [id, 0n, 100n], stranger), /Unauthorized issuer/);
+  assert.throws(() => r.call("registerDemoCredential", [id, 0n, 100n], r.ledger().issuerCommitment), /Unauthorized issuer/);
+  assert.equal(r.ledger().credentials.size(), 0n);
+  r.call("registerDemoCredential", [id, 0n, 100n]);
+  assert.equal(r.ledger().credentials.size(), 1n);
+});
