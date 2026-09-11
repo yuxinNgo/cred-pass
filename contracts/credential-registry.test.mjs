@@ -11,8 +11,11 @@ const holder = new Uint8Array(32).fill(4);
 const holderDomain = new Uint8Array(32);
 holderDomain.set(new TextEncoder().encode("credpass:holder:v1"));
 const holderCommitment = persistentHash(new CompactTypeVector(3, new CompactTypeBytes(32)), [holderDomain, id, holder]);
-function registry() {
-  const contract = new Contract({ issuerSecret: ({ privateState }) => [privateState, privateState] });
+function registry(holderWitness = holder) {
+  const contract = new Contract({
+    issuerSecret: ({ privateState }) => [privateState, privateState],
+    holderSecret: ({ privateState }) => [privateState, holderWitness],
+  });
   const initial = contract.initialState(constructorContext(issuer, "00".repeat(32)));
   let state = initial.currentContractState.data;
   return {
@@ -94,4 +97,15 @@ test("a valid ledger transcript cannot be replayed at or after expiry", () => {
     if (now === 99n) assert.doesNotThrow(replay);
     else assert.throws(replay);
   }
+});
+
+test("only the committed holder secret can produce valid, not issuer or public commitment", () => {
+  for (const secret of [stranger, issuer, holderCommitment, new Uint8Array(32)]) {
+    const r = registry(secret);
+    r.call("registerDemoCredential", [id, 0n, 100n, holderCommitment]);
+    assert.equal(r.call("checkDemoValidity", [id, 0n]).result, false);
+  }
+  const r = registry();
+  r.call("registerDemoCredential", [id, 0n, 100n, holderCommitment]);
+  assert.equal(r.call("checkDemoValidity", [id, 0n], stranger).result, true);
 });
