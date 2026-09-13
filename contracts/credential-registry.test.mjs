@@ -1,12 +1,18 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { constructorContext, QueryContext, dummyContractAddress, CostModel, persistentHash, CompactTypeVector, CompactTypeBytes, encodeContractAddress, decodeContractAddress } from "@midnight-ntwrk/compact-runtime";
-import { Contract, ledger } from "./managed/contract/index.cjs";
+import { createConstructorContext, QueryContext, dummyContractAddress, CostModel, persistentHash, CompactTypeVector, CompactTypeBytes, encodeContractAddress, decodeContractAddress } from "@midnight-ntwrk/compact-runtime";
+import { Contract, ledger } from "./managed/contract/index.js";
 
 const id = new Uint8Array(32).fill(1);
 const issuer = new Uint8Array(32).fill(2);
 const stranger = new Uint8Array(32).fill(3);
 const holder = new Uint8Array(32).fill(4);
+const replayGas = {
+  readTime: 10n ** 18n,
+  computeTime: 10n ** 18n,
+  bytesWritten: 10n ** 18n,
+  bytesDeleted: 10n ** 18n,
+};
 // Holder-side computation: the issuer receives only this public commitment.
 const holderDomain = new Uint8Array(32);
 holderDomain.set(new TextEncoder().encode("credpass:holder:v1"));
@@ -16,17 +22,24 @@ function registry(holderWitness = holder, address = dummyContractAddress()) {
     issuerSecret: ({ privateState }) => [privateState, privateState],
     holderSecret: ({ privateState }) => [privateState, holderWitness],
   });
-  const initial = contract.initialState(constructorContext(issuer, "00".repeat(32)));
+  const initial = contract.initialState(createConstructorContext(issuer, "00".repeat(32)));
   let state = initial.currentContractState.data;
   return {
     call(name, args, secret = issuer, now = 99n, error = 0) {
-      const transactionContext = new QueryContext(state, address);
-      transactionContext.block = { secondsSinceEpoch: now, secondsSinceEpochErr: error, blockHash: "00".repeat(32) };
-      const result = contract.circuits[name]({
-        originalState: initial.currentContractState, currentPrivateState: secret,
-        currentZswapLocalState: initial.currentZswapLocalState, transactionContext,
+      const currentQueryContext = new QueryContext(state, address);
+      currentQueryContext.block = {
+        ...currentQueryContext.block,
+        secondsSinceEpoch: now,
+        secondsSinceEpochErr: error,
+        blockHash: "00".repeat(32),
+      };
+      const result = contract.impureCircuits[name]({
+        currentPrivateState: secret,
+        currentZswapLocalState: initial.currentZswapLocalState,
+        costModel: CostModel.initialCostModel(),
+        currentQueryContext,
       }, ...args);
-      state = result.context.transactionContext.state;
+      state = result.context.currentQueryContext.state;
       return result;
     },
     ledger: () => ledger(state),
@@ -90,12 +103,17 @@ test("a valid ledger transcript cannot be replayed at or after expiry", () => {
   const r = registry();
   r.call("registerDemoCredential", [id, 0n, 100n, holderCommitment]);
   const valid = r.call("checkDemoValidity", [id, 0n], issuer, 99n, 1);
-  const transcript = { gas: 1000000000n, effects: valid.context.transactionContext.effects,
+  const transcript = { gas: replayGas, effects: valid.context.currentQueryContext.effects,
     program: valid.proofData.publicTranscript };
   for (const now of [99n, 100n, 101n]) {
-    const context = new QueryContext(valid.context.transactionContext.state, dummyContractAddress());
-    context.block = { secondsSinceEpoch: now, secondsSinceEpochErr: 1, blockHash: "00".repeat(32) };
-    const replay = () => context.runTranscript(transcript, CostModel.dummyCostModel());
+    const context = new QueryContext(valid.context.currentQueryContext.state, dummyContractAddress());
+    context.block = {
+      ...context.block,
+      secondsSinceEpoch: now,
+      secondsSinceEpochErr: 1,
+      blockHash: "00".repeat(32),
+    };
+    const replay = () => context.runTranscript(transcript, CostModel.initialCostModel());
     if (now === 99n) assert.doesNotThrow(replay);
     else assert.throws(replay);
   }
