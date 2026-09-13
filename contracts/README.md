@@ -21,4 +21,4 @@ Credential IDs, types, expirations, holder commitments, revocations, presentatio
 
 Secret possession is transferable if a holder leaks the secret. The contract does not prove real-world issuer identity, hide registry metadata, support selective disclosure, rotate/recover secrets, or erase records. The hosted credential UI/API remains a separate database-backed flow and does not submit Midnight transactions.
 
-Confirmed Preprod addresses and transaction evidence are added only after indexer verification.
+All three indexer-verified addresses, deployment transactions, smoke calls, aggregate public states, and exact toolchain versions are recorded in [`deployments/preprod.json`](../deployments/preprod.json).

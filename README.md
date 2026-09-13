@@ -3,10 +3,10 @@
 **Live web preview:** https://cred-pass-production.up.railway.app
 
 Hosted on Railway with its own Neon database. Credential storage survives reloads
-within the same browser workspace; Midnight issuance and ZK verification remain
-development demonstrations, not live blockchain operations.
-
-**Current progress: ~55% of the intended credential/ZK product (rough scope estimate, not a measured completion metric or production-readiness score).** The wallet includes Neon persistence and individual demo revocation; the separate public Compact prototype now has secret-based issuer authorization, holder-secret commitments scoped to credential and deployment, irreversible revocation, and ledger-time expiry tests. It is still a demo, not production identity infrastructure. These local changes are not deployed by this update.
+within the same browser workspace. The browser wallet remains database-backed; the
+separate Compact registry now has three independently funded, indexer-verified
+deployments on Midnight Preprod. This is still a demo, not production identity
+infrastructure.
 
 CredPass explores proving a credential requirement without handing a verifier the full record. Student, Employment, and Professional Certificate credentials live in a card-first wallet with horizontal navigation, details, filters, active/expired status, and empty states. The demo issuer validates and saves new credentials; the verifier returns only `{ "result": "VALID" | "INVALID", "mode": "development" }`.
 
@@ -112,7 +112,7 @@ src/store/                 Async wallet state and fictional seed data
 src/shared/                Horizontal navigation, icons, UTC date formatting
 drizzle/                   Versioned SQL migration and metadata
 scripts/                   Explicit migration and disposable DB integration checks
-contracts/                 Compact prototype, not connected to runtime storage
+contracts/                 Compact source, Preprod adapter, and contract tests
 tests/                     Node test runner + tsx
 ```
 
@@ -120,8 +120,16 @@ Next.js 16.3.4, React 19.2.8, TypeScript 5.9.3, Tailwind 4.3.3, ESLint, pnpm, Po
 
 ## Midnight status and next milestones
 
-The development adapter is real tested TypeScript logic, called by a server route. It does **not** generate proofs or call Midnight. The separate public Compact registry enforces a sealed issuer-secret commitment, holder-secret possession bound to each credential and deployment, issuer-only irreversible revocation, and strict Unix-second ledger-kernel expiry. `corepack pnpm test:contract` compiles with compiler 0.26.0 / language 0.18.0 `--skip-zk`, executes generated circuits using pinned runtime 0.9.0, and checks expired transcript replay in the ledger VM. These are local runtime tests, **not generated or verified ZK proofs, authenticated network-time evidence, or live blockchain operations**. See [contracts/README.md](contracts/README.md) for authorization, clock uncertainty, and public-data boundaries.
+The API's development adapter remains ordinary tested TypeScript and does not call Midnight. Separately, `contracts/credential-registry.compact` is release-compiled with **Compact compiler 0.31.1, language 0.23.0, and runtime 0.16.0**. Full prover, verifier, and ZKIR assets were used for the Preprod transactions below. Sixteen contract/runtime tests cover issuer authorization, holder/deployment binding, expiry, irreversible revocation, challenge-bound presentations, atomic rejection, privacy boundaries, and replay resistance.
 
-Next: private credential-content commitments, verifier challenges, and secure holder key handling; real adapter/proof generation and verification; trusted real-world issuer identity, authenticated holder recovery and external verifier boundaries; abuse controls and storage cleanup before opening a public service. The UI remains a database-backed demo, not connected to these circuits. Full revocation architecture, composite proofs, identity networks, issuer governance, and advanced selective disclosure remain outside this pass.
+| Deployment wallet | Contract | Deploy proof | Registry activity |
+|---|---|---|---|
+| 02 | [`f56f9b5c…623f`](https://explorer.preprod.midnight.network/contracts/stream/f56f9b5cf1b02621cda5f3a8780cba215d28f6b7029eb28cb2aa805e14b5623f) | [`00c1e601…4625`](https://explorer.preprod.midnight.network/transactions/00c1e601b0e834c72940bf80b6f741df0eafc1619be64eda997953f138aac74625) | [`registerCredential`](https://explorer.preprod.midnight.network/transactions/007d625ae54d26a50c86f0e5b8a6c6315926777f859e4674810f1e3fe1e2244ec9) |
+| 03 | [`367b96eb…ac9d`](https://explorer.preprod.midnight.network/contracts/stream/367b96ebc3eb73032957c5600ad258521f7596dac3079acbb8b279a1d613ac9d) | [`00002cc5…46eb0`](https://explorer.preprod.midnight.network/transactions/00002cc5f8e11e4fafdff543750f619e4d4a92d4f3c533c0f490fce30d50746eb0) | [`registerCredential`](https://explorer.preprod.midnight.network/transactions/001aa7bf4c11f1a46923271512bb82d83d3a0511112e098f45747bc4bf6ff21da7) |
+| imported | [`9ae90cce…14c6`](https://explorer.preprod.midnight.network/contracts/stream/9ae90ccec24dc2fec53772a577957ad016c262858e88d51fff44b2d1aa6314c6) | [`002f1c0c…4f16`](https://explorer.preprod.midnight.network/transactions/002f1c0cbaf6eac0ce362fdb1f69edd74f35f6d37cb56e4841d092776f3b494f16) | [`register → present`](https://explorer.preprod.midnight.network/transactions/00700bc416a51c785e83faea83f00e1d2ade0cfe2e17668b2351e621de12b0d2a9) |
+
+All seven deployment/smoke transactions were independently read back from the indexer with status `SucceedEntirely`. The imported canary registered one credential, presented it once, then rejected reuse of the same verifier challenge before broadcast. The complete public record is [deployments/preprod.json](deployments/preprod.json).
+
+Next: connect the hosted UI to a supported wallet/proof provider; establish trusted real-world issuer identity, secure holder key recovery, and external verifier freshness rules; add abuse controls and storage cleanup before opening a public service. Full revocation governance, composite proofs, identity networks, and advanced selective disclosure remain outside this pass.
 
 References: [Compact](https://docs.midnight.network/compact/reference/compact-reference), [Drizzle migrations](https://orm.drizzle.team/docs/migrations), [pg pooling](https://node-postgres.com/apis/pool), [Next.js runtime configuration](https://nextjs.org/docs/app/api-reference/cli/next), [Railway config](https://docs.railway.com/config-as-code/reference).

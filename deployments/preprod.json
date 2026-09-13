@@ -1,0 +1,108 @@
+{
+  "network": "preprod",
+  "compiler": "0.31.1",
+  "language": "0.23.0",
+  "runtime": "0.16.0",
+  "contracts": [
+    {
+      "walletAlias": "02",
+      "walletAddress": "mn_addr_preprod1k2dnvxdrm62lgugue7kh43f0gzuzcgtc4l0vjwckc0f9gu69d0esv3qwhh",
+      "contractAddress": "f56f9b5cf1b02621cda5f3a8780cba215d28f6b7029eb28cb2aa805e14b5623f",
+      "deployment": {
+        "txId": "00c1e601b0e834c72940bf80b6f741df0eafc1619be64eda997953f138aac74625",
+        "txHash": "33848631f684031eca939a88710411822140d1fb9239e7010264969ae80a376e",
+        "blockHash": "9f4c814dfc64da40d04b422aef2def40d2ac32cd0896e41567614bb4052dd119",
+        "blockHeight": 2533419,
+        "blockTimestamp": 1789313148000,
+        "status": "SucceedEntirely",
+        "paidFees": "1"
+      },
+      "smokeTransactions": [
+        {
+          "txId": "007d625ae54d26a50c86f0e5b8a6c6315926777f859e4674810f1e3fe1e2244ec9",
+          "txHash": "7702a19103c7caf5d496190685f180eabaf3cbcb6088c798288798b3ce6cfc00",
+          "blockHash": "ad2071b2c7fda276851f66efa69590e3f16fd20c1fc8b43cd97904dcdca14b68",
+          "blockHeight": 2533424,
+          "blockTimestamp": 1789313178000,
+          "status": "SucceedEntirely",
+          "paidFees": "1"
+        }
+      ],
+      "state": {
+        "credentialCount": 1,
+        "revokedCount": 0,
+        "presentationCount": 0
+      }
+    },
+    {
+      "walletAlias": "03",
+      "walletAddress": "mn_addr_preprod1h3nry3y7duwtg7atjd7jlkyvlfzckmklaxldp75zwz2ppqgu3e2s9dhunu",
+      "contractAddress": "367b96ebc3eb73032957c5600ad258521f7596dac3079acbb8b279a1d613ac9d",
+      "deployment": {
+        "txId": "00002cc5f8e11e4fafdff543750f619e4d4a92d4f3c533c0f490fce30d50746eb0",
+        "txHash": "9b8fb94b79e0416d2ab6d035e65860eccc028362b7817d36eaed9d6fbe1fca96",
+        "blockHash": "c60dcec057300396b649255eaea94d524f0f1f9578db75a1bf31db19a1273d6d",
+        "blockHeight": 2533468,
+        "blockTimestamp": 1789313442000,
+        "status": "SucceedEntirely",
+        "paidFees": "1"
+      },
+      "smokeTransactions": [
+        {
+          "txId": "001aa7bf4c11f1a46923271512bb82d83d3a0511112e098f45747bc4bf6ff21da7",
+          "txHash": "221966025a1aeecd95b4fc64cc3933724ed15e25aab457cc001a9235a9eb0185",
+          "blockHash": "effe464aa6e892816a40a56fa19d860a852183f26403d82697bc6d63c6669e92",
+          "blockHeight": 2533472,
+          "blockTimestamp": 1789313466000,
+          "status": "SucceedEntirely",
+          "paidFees": "1"
+        }
+      ],
+      "state": {
+        "credentialCount": 1,
+        "revokedCount": 0,
+        "presentationCount": 0
+      }
+    },
+    {
+      "walletAlias": "imported",
+      "walletAddress": "mn_addr_preprod1lmkn8u69cnxhqetxqp25umer5f4slamacakeun9cdm2nxvd30khs9yy2wj",
+      "contractAddress": "9ae90ccec24dc2fec53772a577957ad016c262858e88d51fff44b2d1aa6314c6",
+      "deployment": {
+        "txId": "002f1c0cbaf6eac0ce362fdb1f69edd74f35f6d37cb56e4841d092776f3b494f16",
+        "txHash": "1dfced333f460c001df906ceb6cbbc4af40853664a34664ffa3743eb47324c26",
+        "blockHash": "fe17a94d06996acb558ee99e57d48e117658c3309e0f4e5286490b1211cadff6",
+        "blockHeight": 2532150,
+        "blockTimestamp": 1789305534000,
+        "status": "SucceedEntirely",
+        "paidFees": "1"
+      },
+      "smokeTransactions": [
+        {
+          "txId": "00284b54d08e3a8fe9e32235f3b8961547cb860ce14f7696a858092f2504f9ed00",
+          "txHash": "da78a641cc047a76c4b95a5fdbba12bc33c67d87001bf40b57dd733c836999a4",
+          "blockHash": "5e635f1f3d5c0970555c41437306da7ae3e14af525b056017358973fd94b7967",
+          "blockHeight": 2532157,
+          "blockTimestamp": 1789305576001,
+          "status": "SucceedEntirely",
+          "paidFees": "1"
+        },
+        {
+          "txId": "00700bc416a51c785e83faea83f00e1d2ade0cfe2e17668b2351e621de12b0d2a9",
+          "txHash": "9c30cedee3e024f6a5a5484190d27d53cfc8361f2132f0755a763331e3377122",
+          "blockHash": "49610d9d0fce808f53611fdce09ab4fac67db12be71906c12f7dde3a931abe4a",
+          "blockHeight": 2532163,
+          "blockTimestamp": 1789305612000,
+          "status": "SucceedEntirely",
+          "paidFees": "1"
+        }
+      ],
+      "state": {
+        "credentialCount": 1,
+        "revokedCount": 0,
+        "presentationCount": 1
+      }
+    }
+  ]
+}
+
