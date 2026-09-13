@@ -11,7 +11,7 @@
     "lint": "eslint .",
     "test": "tsx --test tests/*.test.ts",
     "contract:compile": "node scripts/compile-contract.mjs",
-    "test:contract": "node scripts/compile-contract.mjs --fast && node --test contracts/credential-registry.test.mjs",
+    "test:contract": "node scripts/compile-contract.mjs --fast && node --test contracts/credential-registry.test.mjs contracts/preprod-adapter.test.mjs",
     "typecheck": "next typegen && tsc --noEmit",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/migrate.ts",
