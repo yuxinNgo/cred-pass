@@ -1,22 +1,28 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createConstructorContext, QueryContext, dummyContractAddress, CostModel, persistentHash, CompactTypeVector, CompactTypeBytes, encodeContractAddress, decodeContractAddress } from "@midnight-ntwrk/compact-runtime";
-import { Contract, ledger } from "./managed/contract/index.js";
+import {
+  CostModel,
+  QueryContext,
+  createConstructorContext,
+  decodeContractAddress,
+  dummyContractAddress,
+  encodeContractAddress,
+} from "@midnight-ntwrk/compact-runtime";
+import { Contract, ledger, pureCircuits } from "./managed/contract/index.js";
 
 const id = new Uint8Array(32).fill(1);
 const issuer = new Uint8Array(32).fill(2);
 const stranger = new Uint8Array(32).fill(3);
 const holder = new Uint8Array(32).fill(4);
+const challenge = new Uint8Array(32).fill(5);
+const secondChallenge = new Uint8Array(32).fill(6);
 const replayGas = {
   readTime: 10n ** 18n,
   computeTime: 10n ** 18n,
   bytesWritten: 10n ** 18n,
   bytesDeleted: 10n ** 18n,
 };
-// Holder-side computation: the issuer receives only this public commitment.
-const holderDomain = new Uint8Array(32);
-holderDomain.set(new TextEncoder().encode("credpass:holder:v1"));
-const holderCommitment = persistentHash(new CompactTypeVector(4, new CompactTypeBytes(32)), [holderDomain, encodeContractAddress(dummyContractAddress()), id, holder]);
+
 function registry(holderWitness = holder, address = dummyContractAddress()) {
   const contract = new Contract({
     issuerSecret: ({ privateState }) => [privateState, privateState],
@@ -25,6 +31,8 @@ function registry(holderWitness = holder, address = dummyContractAddress()) {
   const initial = contract.initialState(createConstructorContext(issuer, "00".repeat(32)));
   let state = initial.currentContractState.data;
   return {
+    address,
+    state: () => state,
     call(name, args, secret = issuer, now = 99n, error = 0) {
       const currentQueryContext = new QueryContext(state, address);
       currentQueryContext.block = {
@@ -46,67 +54,116 @@ function registry(holderWitness = holder, address = dummyContractAddress()) {
   };
 }
 
-test("compiled registry stores an immutable credential and rejects unsupported types", () => {
-  const r = registry();
-  r.call("registerDemoCredential", [id, 0n, 100n, holderCommitment]);
-  assert.deepEqual(r.ledger().credentials.lookup(id).holderCommitment, holderCommitment);
-  assert.deepEqual(r.ledger().credentials.lookup(id), { credentialType: 0n, expiresAt: 100n, holderCommitment });
-  assert.throws(() => r.call("registerDemoCredential", [id, 1n, 200n, holderCommitment]), /already registered/);
-  assert.throws(() => r.call("registerDemoCredential", [stranger, 3n, 100n, holderCommitment]), /Unsupported/);
-  assert.equal(r.ledger().credentials.size(), 1n);
+function holderCommitmentFor(address, credentialId = id, secret = holder) {
+  return pureCircuits.holderKey(encodeContractAddress(address), credentialId, secret);
+}
+
+function register(h, credentialId = id, expiresAt = 200n, secret = holder) {
+  const commitment = holderCommitmentFor(h.address, credentialId, secret);
+  h.call("registerCredential", [credentialId, 0n, expiresAt, commitment]);
+  return commitment;
+}
+
+test("holder presents once per nonzero verifier challenge", () => {
+  const h = registry();
+  register(h);
+  assert.equal(h.call("presentCredential", [id, 0n, challenge]).result, true);
+  assert.equal(h.ledger().presentationNullifiers.size(), 1n);
+  assert.throws(() => h.call("presentCredential", [id, 0n, challenge]), /already used/i);
+  assert.equal(h.call("presentCredential", [id, 0n, secondChallenge]).result, true);
+  assert.equal(h.ledger().presentationNullifiers.size(), 2n);
+});
+
+test("credential presentation rejects invalid proof boundaries atomically", () => {
+  const h = registry();
+  register(h, id, 100n);
+  for (const [args, now, pattern] of [
+    [[id, 0n, new Uint8Array(32)], 99n, /challenge/i],
+    [[stranger, 0n, challenge], 99n, /not registered/i],
+    [[id, 1n, challenge], 99n, /type/i],
+    [[id, 0n, challenge], 100n, /expired/i],
+  ]) {
+    assert.throws(() => h.call("presentCredential", args, issuer, now), pattern);
+    assert.equal(h.ledger().presentationNullifiers.size(), 0n);
+  }
+  const wrong = registry(stranger);
+  register(wrong);
+  assert.throws(() => wrong.call("presentCredential", [id, 0n, challenge]), /holder/i);
+  assert.equal(wrong.ledger().presentationNullifiers.size(), 0n);
+  h.call("revokeCredential", [id]);
+  assert.throws(() => h.call("presentCredential", [id, 0n, challenge]), /revoked/i);
+  assert.equal(h.ledger().presentationNullifiers.size(), 0n);
+});
+
+test("registry stores an immutable credential and rejects unsupported types", () => {
+  const h = registry();
+  const commitment = register(h, id, 100n);
+  assert.deepEqual(h.ledger().credentials.lookup(id), {
+    credentialType: 0n,
+    expiresAt: 100n,
+    holderCommitment: commitment,
+  });
+  assert.throws(() => h.call("registerCredential", [id, 1n, 200n, commitment]), /already registered/i);
+  assert.throws(() => h.call("registerCredential", [stranger, 3n, 100n, commitment]), /unsupported/i);
+  assert.equal(h.ledger().credentials.size(), 1n);
 });
 
 test("registration requires the constructor issuer secret, not public identity", () => {
-  const r = registry();
-  assert.throws(() => r.call("registerDemoCredential", [id, 0n, 100n, holderCommitment], stranger), /Unauthorized issuer/);
-  assert.throws(() => r.call("registerDemoCredential", [id, 0n, 100n, holderCommitment], holder), /Unauthorized issuer/);
-  assert.throws(() => r.call("registerDemoCredential", [id, 0n, 100n, holderCommitment], r.ledger().issuerCommitment), /Unauthorized issuer/);
-  assert.equal(r.ledger().credentials.size(), 0n);
-  r.call("registerDemoCredential", [id, 0n, 100n, holderCommitment]);
-  assert.equal(r.ledger().credentials.size(), 1n);
+  const h = registry();
+  const commitment = holderCommitmentFor(h.address);
+  for (const secret of [stranger, holder, h.ledger().issuerCommitment]) {
+    assert.throws(() => h.call("registerCredential", [id, 0n, 100n, commitment], secret), /issuer/i);
+  }
+  assert.equal(h.ledger().credentials.size(), 0n);
+  h.call("registerCredential", [id, 0n, 100n, commitment]);
+  assert.equal(h.ledger().credentials.size(), 1n);
 });
 
 test("issuer revocation is permanent and rejects strangers and unknown IDs", () => {
-  const r = registry();
-  r.call("registerDemoCredential", [id, 0n, 100n, holderCommitment]);
-  assert.throws(() => r.call("revokeDemoCredential", [id], stranger), /Unauthorized issuer/);
-  assert.throws(() => r.call("revokeDemoCredential", [id], holder), /Unauthorized issuer/);
-  assert.equal(r.call("checkDemoValidity", [id, 0n]).result, true);
-  assert.throws(() => r.call("revokeDemoCredential", [stranger]), /not registered/);
-  r.call("revokeDemoCredential", [id]);
-  r.call("revokeDemoCredential", [id]);
-  assert.equal(r.call("checkDemoValidity", [id, 0n]).result, false);
-  assert.throws(() => r.call("registerDemoCredential", [id, 0n, 200n, holderCommitment]), /already registered/);
-  assert.equal(r.ledger().revoked.size(), 1n);
+  const h = registry();
+  register(h);
+  assert.throws(() => h.call("revokeCredential", [id], stranger), /issuer/i);
+  assert.throws(() => h.call("revokeCredential", [id], holder), /issuer/i);
+  assert.throws(() => h.call("revokeCredential", [stranger]), /not registered/i);
+  h.call("revokeCredential", [id]);
+  h.call("revokeCredential", [id]);
+  assert.throws(() => h.call("presentCredential", [id, 0n, challenge]), /revoked/i);
+  assert.throws(() => h.call("registerCredential", [id, 0n, 200n, holderCommitmentFor(h.address)]), /already registered/i);
+  assert.equal(h.ledger().revoked.size(), 1n);
 });
 
-test("validity cannot use a caller timestamp to bypass ledger expiration", () => {
-  const r = registry();
-  r.call("registerDemoCredential", [id, 0n, 100n, holderCommitment]);
-  assert.throws(() => r.call("checkDemoValidity", [id, 0n, 0n], issuer, 100n), /expected 3 arguments/);
-  assert.equal(r.call("checkDemoValidity", [id, 0n], issuer, 99n).result, true);
-  assert.equal(r.call("checkDemoValidity", [id, 0n], issuer, 100n).result, false);
-  assert.equal(r.call("checkDemoValidity", [id, 0n], issuer, 101n).result, false);
-  assert.equal(r.call("checkDemoValidity", [id, 1n]).result, false);
-  assert.equal(r.call("checkDemoValidity", [stranger, 0n]).result, false);
+test("expiration is ledger-bound and exclusive", () => {
+  for (const [now, valid] of [[99n, true], [100n, false], [101n, false]]) {
+    const h = registry();
+    register(h, id, 100n);
+    const present = () => h.call("presentCredential", [id, 0n, challenge], issuer, now);
+    if (valid) assert.equal(present().result, true);
+    else assert.throws(present, /expired/i);
+  }
 });
 
-test("kernel compares nominal ledger seconds even with a nonzero error window", () => {
-  const r = registry();
-  r.call("registerDemoCredential", [id, 0n, 100n, holderCommitment]);
-  assert.equal(r.call("checkDemoValidity", [id, 0n], issuer, 98n, 1).result, true);
-  assert.equal(r.call("checkDemoValidity", [id, 0n], issuer, 99n, 1).result, true);
-  assert.equal(r.call("checkDemoValidity", [id, 0n], issuer, 100n, 1).result, false);
+test("kernel compares nominal ledger seconds with a nonzero error window", () => {
+  for (const [now, valid] of [[98n, true], [99n, true], [100n, false]]) {
+    const h = registry();
+    register(h, id, 100n);
+    const present = () => h.call("presentCredential", [id, 0n, challenge], issuer, now, 1);
+    if (valid) assert.equal(present().result, true);
+    else assert.throws(present, /expired/i);
+  }
 });
 
-test("a valid ledger transcript cannot be replayed at or after expiry", () => {
-  const r = registry();
-  r.call("registerDemoCredential", [id, 0n, 100n, holderCommitment]);
-  const valid = r.call("checkDemoValidity", [id, 0n], issuer, 99n, 1);
-  const transcript = { gas: replayGas, effects: valid.context.currentQueryContext.effects,
-    program: valid.proofData.publicTranscript };
+test("a valid presentation transcript cannot replay or cross expiry", () => {
+  const h = registry();
+  register(h, id, 100n);
+  const before = h.state();
+  const valid = h.call("presentCredential", [id, 0n, challenge], issuer, 99n, 1);
+  const transcript = {
+    gas: replayGas,
+    effects: valid.context.currentQueryContext.effects,
+    program: valid.proofData.publicTranscript,
+  };
   for (const now of [99n, 100n, 101n]) {
-    const context = new QueryContext(valid.context.currentQueryContext.state, dummyContractAddress());
+    const context = new QueryContext(before, h.address);
     context.block = {
       ...context.block,
       secondsSinceEpoch: now,
@@ -114,65 +171,75 @@ test("a valid ledger transcript cannot be replayed at or after expiry", () => {
       blockHash: "00".repeat(32),
     };
     const replay = () => context.runTranscript(transcript, CostModel.initialCostModel());
-    if (now === 99n) assert.doesNotThrow(replay);
-    else assert.throws(replay);
+    if (now === 99n) {
+      const applied = replay();
+      assert.throws(() => applied.runTranscript(transcript, CostModel.initialCostModel()));
+    } else {
+      assert.throws(replay);
+    }
   }
 });
 
-test("only the committed holder secret can produce valid, not issuer or public commitment", () => {
-  for (const secret of [stranger, issuer, holderCommitment, new Uint8Array(32)]) {
-    const r = registry(secret);
-    r.call("registerDemoCredential", [id, 0n, 100n, holderCommitment]);
-    assert.equal(r.call("checkDemoValidity", [id, 0n]).result, false);
+test("only the committed holder secret can present", () => {
+  for (const secret of [stranger, issuer, holderCommitmentFor(dummyContractAddress()), new Uint8Array(32)]) {
+    const h = registry(secret);
+    register(h);
+    assert.throws(() => h.call("presentCredential", [id, 0n, challenge]), /holder/i);
   }
-  const r = registry();
-  r.call("registerDemoCredential", [id, 0n, 100n, holderCommitment]);
-  assert.equal(r.call("checkDemoValidity", [id, 0n], stranger).result, true);
+  const h = registry();
+  register(h);
+  assert.equal(h.call("presentCredential", [id, 0n, challenge], stranger).result, true);
 });
 
-test("issuance rejects an unset holder commitment without consuming the credential ID", () => {
-  const r = registry();
-  assert.throws(() => r.call("registerDemoCredential", [id, 0n, 100n, new Uint8Array(32)]), /Missing holder commitment/);
-  assert.equal(r.ledger().credentials.size(), 0n);
-  r.call("registerDemoCredential", [id, 0n, 100n, holderCommitment]);
-  assert.equal(r.call("checkDemoValidity", [id, 0n]).result, true);
+test("issuance rejects an unset holder commitment without consuming the ID", () => {
+  const h = registry();
+  assert.throws(() => h.call("registerCredential", [id, 0n, 100n, new Uint8Array(32)]), /holder commitment/i);
+  assert.equal(h.ledger().credentials.size(), 0n);
+  register(h, id, 100n);
+  assert.equal(h.call("presentCredential", [id, 0n, challenge]).result, true);
 });
 
 test("a holder commitment copied onto another credential does not transfer ownership", () => {
-  const r = registry();
-  r.call("registerDemoCredential", [id, 0n, 100n, holderCommitment]);
-  r.call("registerDemoCredential", [stranger, 0n, 100n, holderCommitment]);
-  assert.equal(r.call("checkDemoValidity", [id, 0n]).result, true);
-  assert.equal(r.call("checkDemoValidity", [stranger, 0n]).result, false);
+  const h = registry();
+  const commitment = register(h, id, 100n);
+  h.call("registerCredential", [stranger, 0n, 100n, commitment]);
+  assert.equal(h.call("presentCredential", [id, 0n, challenge]).result, true);
+  assert.throws(() => h.call("presentCredential", [stranger, 0n, secondChallenge]), /holder/i);
 });
 
-test("changing the private holder witness changes only validity, not the public ledger transcript", () => {
-  const correct = registry();
-  const wrong = registry(stranger);
-  for (const r of [correct, wrong]) r.call("registerDemoCredential", [id, 0n, 100n, holderCommitment]);
-  const valid = correct.call("checkDemoValidity", [id, 0n]);
-  const invalid = wrong.call("checkDemoValidity", [id, 0n]);
-  assert.equal(valid.result, true);
-  assert.equal(invalid.result, false);
-  assert.deepEqual(valid.proofData.publicTranscript, invalid.proofData.publicTranscript);
-  assert.deepEqual(valid.proofData.input, invalid.proofData.input);
-  assert.notDeepEqual(valid.proofData.privateTranscriptOutputs, invalid.proofData.privateTranscriptOutputs);
-  for (const r of [correct, wrong]) {
-    assert.equal(r.call("checkDemoValidity", [stranger, 0n]).result, false);
-    assert.equal(r.call("checkDemoValidity", [id, 1n]).result, false);
-    assert.equal(r.call("checkDemoValidity", [id, 0n], issuer, 100n).result, false);
-    r.call("revokeDemoCredential", [id]);
-    assert.equal(r.call("checkDemoValidity", [id, 0n]).result, false);
-  }
+test("private holder material stays out of public ledger and transcript", () => {
+  const h = registry();
+  register(h);
+  const result = h.call("presentCredential", [id, 0n, challenge]);
+  const serialize = (value) => JSON.stringify(value, (_, item) => {
+    if (typeof item === "bigint") return item.toString();
+    return item instanceof Uint8Array ? Buffer.from(item).toString("hex") : item;
+  });
+  const publicData = serialize([
+    result.context.currentQueryContext.state.state.encode(),
+    result.proofData.publicTranscript,
+  ]);
+  const privateData = serialize(result.proofData.privateTranscriptOutputs);
+  const holderHex = Buffer.from(holder).toString("hex");
+  assert.ok(privateData.includes(holderHex));
+  assert.ok(!publicData.includes(holderHex));
 });
 
-test("a copied commitment cannot authenticate the same credential in another deployment", () => {
-  const other = registry(holder, decodeContractAddress(new Uint8Array(32).fill(9)));
-  other.call("registerDemoCredential", [id, 0n, 100n, holderCommitment]);
-  assert.equal(other.call("checkDemoValidity", [id, 0n]).result, false);
+test("holder commitments are deployment-bound", () => {
   const address = decodeContractAddress(new Uint8Array(32).fill(9));
-  const localCommitment = persistentHash(new CompactTypeVector(4, new CompactTypeBytes(32)), [holderDomain, encodeContractAddress(address), id, holder]);
-  const correctlyBound = registry(holder, address);
-  correctlyBound.call("registerDemoCredential", [id, 0n, 100n, localCommitment]);
-  assert.equal(correctlyBound.call("checkDemoValidity", [id, 0n]).result, true);
+  const other = registry(holder, address);
+  other.call("registerCredential", [id, 0n, 100n, holderCommitmentFor(dummyContractAddress())]);
+  assert.throws(() => other.call("presentCredential", [id, 0n, challenge]), /holder/i);
+  const local = registry(holder, address);
+  register(local, id, 100n);
+  assert.equal(local.call("presentCredential", [id, 0n, challenge]).result, true);
+});
+
+test("the same verifier challenge is independent across credential IDs", () => {
+  const h = registry();
+  register(h, id);
+  register(h, stranger);
+  assert.equal(h.call("presentCredential", [id, 0n, challenge]).result, true);
+  assert.equal(h.call("presentCredential", [stranger, 0n, challenge]).result, true);
+  assert.equal(h.ledger().presentationNullifiers.size(), 2n);
 });
