@@ -6,7 +6,7 @@
   "packageManager": "pnpm@10.18.3",
   "scripts": {
     "dev": "next dev --webpack",
-    "build": "next build --webpack",
+    "build": "bash scripts/build-production.sh",
     "start": "next start --hostname 0.0.0.0",
     "lint": "eslint .",
     "test": "tsx --test tests/*.test.ts",

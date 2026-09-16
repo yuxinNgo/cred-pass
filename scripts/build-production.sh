@@ -8,4 +8,4 @@ if ! command -v compact >/dev/null 2>&1; then
 fi
 compact update 0.31.1
 corepack pnpm contract:compile
-corepack pnpm build
+corepack pnpm exec next build --webpack
