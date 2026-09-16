@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { readFileSync, rmSync } from "node:fs";
+import { cpSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
@@ -26,3 +26,9 @@ const info = JSON.parse(readFileSync(`${root}contracts/managed/compiler/contract
 assert.equal(info["compiler-version"], "0.31.1");
 assert.equal(info["language-version"], "0.23.0");
 assert.equal(info["runtime-version"], "0.16.0");
+
+if (!process.argv.includes("--fast")) {
+  rmSync(`${root}public/zk`, { recursive: true, force: true });
+  mkdirSync(`${root}public/zk`, { recursive: true });
+  cpSync(`${root}contracts/managed`, `${root}public/zk`, { recursive: true });
+}
