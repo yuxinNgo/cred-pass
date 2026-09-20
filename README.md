@@ -19,12 +19,12 @@
 - **CI/CD - Complete:** [release workflow](.github/workflows/ci.yml) plus Railway deployment from `main`
 - **Product X profile - Complete:** [@stlremit](https://x.com/stlremit)
 - **Demo video - Pending:** link will be added after recording
-- **Meaningful commits - Complete:** [45+ commits](https://github.com/yuxinNgo/cred-pass/commits/main/)
+- **Meaningful commits - Complete:** [46+ commits](https://github.com/yuxinNgo/cred-pass/commits/main/)
 
 Hosted on Railway with its own Neon database. Credential storage survives reloads
-within the same browser workspace. The browser wallet remains database-backed; the
-separate Compact registry now has three independently funded, indexer-verified
-deployments on Midnight Preprod. This is still a demo, not production identity
+within the same browser workspace. A dedicated Lace-signed `/preprod` console reads
+and submits registry transactions to three independently funded, indexer-verified
+Compact deployments on Midnight Preprod. This is still a demo, not production identity
 infrastructure.
 
 CredPass explores proving a credential requirement without handing a verifier the full record. Student, Employment, and Professional Certificate credentials live in a card-first wallet with horizontal navigation, details, filters, active/expired status, and empty states. The demo issuer validates and saves new credentials; the verifier returns only `{ "result": "VALID" | "INVALID", "mode": "development" }`.
@@ -139,7 +139,7 @@ Next.js 16.3.4, React 19.2.8, TypeScript 5.9.3, Tailwind 4.3.3, ESLint, pnpm, Po
 
 ## Midnight status and next milestones
 
-The API's development adapter remains ordinary tested TypeScript and does not call Midnight. Separately, `contracts/credential-registry.compact` is release-compiled with **Compact compiler 0.31.1, language 0.23.0, and runtime 0.16.0**. Full prover, verifier, and ZKIR assets were used for the Preprod transactions below. Sixteen contract/runtime tests cover issuer authorization, holder/deployment binding, expiry, irreversible revocation, challenge-bound presentations, atomic rejection, privacy boundaries, and replay resistance.
+The database API's development adapter remains ordinary tested TypeScript. Direct chain access is isolated in the `/preprod` console, which uses Lace and the generated Compact client. `contracts/credential-registry.compact` is release-compiled with **Compact compiler 0.31.1, language 0.23.0, and runtime 0.16.0**. Full prover, verifier, and ZKIR assets were used for the Preprod transactions below. Sixteen contract/runtime tests cover issuer authorization, holder/deployment binding, expiry, irreversible revocation, challenge-bound presentations, atomic rejection, privacy boundaries, and replay resistance.
 
 | Deployment wallet | Contract | Deploy proof | Registry activity |
 |---|---|---|---|
@@ -149,6 +149,6 @@ The API's development adapter remains ordinary tested TypeScript and does not ca
 
 All seven deployment/smoke transactions were independently read back from the indexer with status `SucceedEntirely`. The imported canary registered one credential, presented it once, then rejected reuse of the same verifier challenge before broadcast. The complete public record is [deployments/preprod.json](deployments/preprod.json).
 
-Next: connect the hosted UI to a supported wallet/proof provider; establish trusted real-world issuer identity, secure holder key recovery, and external verifier freshness rules; add abuse controls and storage cleanup before opening a public service. Full revocation governance, composite proofs, identity networks, and advanced selective disclosure remain outside this pass.
+Next: harden the existing Lace/proof-provider integration with secure holder key recovery and operational monitoring; establish trusted real-world issuer identity and external verifier freshness rules; add abuse controls and storage cleanup before opening a public service. Full revocation governance, composite proofs, identity networks, and advanced selective disclosure remain outside this pass.
 
 References: [Compact](https://docs.midnight.network/compact/reference/compact-reference), [Drizzle migrations](https://orm.drizzle.team/docs/migrations), [pg pooling](https://node-postgres.com/apis/pool), [Next.js runtime configuration](https://nextjs.org/docs/app/api-reference/cli/next), [Railway config](https://docs.railway.com/config-as-code/reference).
