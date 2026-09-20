@@ -1,0 +1,36 @@
+name: CredPass release checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cred-pass-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  release-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Restore dependencies
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.18.3 --activate
+          pnpm install --frozen-lockfile
+      - name: Check web and privacy contract
+        run: |
+          export PATH="$HOME/.compact/bin:$HOME/.local/bin:$PATH"
+          bash scripts/build-production.sh
+          pnpm lint
+          pnpm typecheck
+          pnpm test
+          pnpm test:contract

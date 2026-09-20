@@ -1,6 +1,25 @@
 # CredPass
 
-**Live web preview:** https://cred-pass-production.up.railway.app
+**Review endpoints:** [Production wallet](https://cred-pass-production.up.railway.app) / [Midnight Preprod registry](https://cred-pass-production.up.railway.app/preprod) / [Product X](https://x.com/stlremit)
+
+## Level 4 reviewer route
+
+1. Open the production wallet and issue a fictional credential.
+2. Verify only the minimum `VALID` or `INVALID` result is disclosed.
+3. Open the Preprod registry, connect Lace, and inspect or submit a contract action.
+4. Verify the public contract and transaction evidence below.
+
+### Submission checklist
+
+- **Public repository - Complete:** [yuxinNgo/cred-pass](https://github.com/yuxinNgo/cred-pass)
+- **Live Preprod MVP - Complete:** [application](https://cred-pass-production.up.railway.app) and [contract console](https://cred-pass-production.up.railway.app/preprod)
+- **Contract address - Complete:** [`f56f9b5cf1b02621cda5f3a8780cba215d28f6b7029eb28cb2aa805e14b5623f`](https://explorer.preprod.midnight.network/contracts/stream/f56f9b5cf1b02621cda5f3a8780cba215d28f6b7029eb28cb2aa805e14b5623f)
+- **Deployment proof - Complete:** [transaction `00c1e601...4625`](https://explorer.preprod.midnight.network/transactions/00c1e601b0e834c72940bf80b6f741df0eafc1619be64eda997953f138aac74625) and [full deployment record](deployments/preprod.json)
+- **Documentation - Complete:** [setup](#setup), [API and integration checks](#api-and-integration-checks), [code organization](#code-organization), and [contract notes](contracts/README.md)
+- **CI/CD - Complete:** [release workflow](.github/workflows/ci.yml) plus Railway deployment from `main`
+- **Product X profile - Complete:** [@stlremit](https://x.com/stlremit)
+- **Demo video - Pending:** link will be added after recording
+- **Meaningful commits - Complete:** [45+ commits](https://github.com/yuxinNgo/cred-pass/commits/main/)
 
 Hosted on Railway with its own Neon database. Credential storage survives reloads
 within the same browser workspace. The browser wallet remains database-backed; the
