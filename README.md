@@ -19,13 +19,13 @@
 - **CI/CD - Complete:** [release workflow](.github/workflows/ci.yml) plus Railway deployment from `main`
 - **Product X profile - Complete:** [@stlremit](https://x.com/stlremit)
 - **Demo video - Pending:** link will be added after recording
-- **Meaningful commits - Complete:** [46+ commits](https://github.com/yuxinNgo/cred-pass/commits/main/)
+- **Meaningful commits - Complete:** [47+ commits](https://github.com/yuxinNgo/cred-pass/commits/main/)
 
-Hosted on Railway with its own Neon database. Credential storage survives reloads
-within the same browser workspace. A dedicated Lace-signed `/preprod` console reads
-and submits registry transactions to three independently funded, indexer-verified
-Compact deployments on Midnight Preprod. This is still a demo, not production identity
-infrastructure.
+The Railway entry route opens the Lace-first registry. Wallet signatures derive
+issuer and holder private state; Lace handles proof generation, fee balancing, and
+transaction submission without pasted secrets. Three independently funded,
+indexer-verified Compact deployments are live on Midnight Preprod. This is still a
+demo, not production identity infrastructure.
 
 CredPass explores proving a credential requirement without handing a verifier the full record. Student, Employment, and Professional Certificate credentials live in a card-first wallet with horizontal navigation, details, filters, active/expired status, and empty states. The demo issuer validates and saves new credentials; the verifier returns only `{ "result": "VALID" | "INVALID", "mode": "development" }`.
 

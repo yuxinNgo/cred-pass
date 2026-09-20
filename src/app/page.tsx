@@ -1,2 +1,5 @@
-import { WalletScreen } from "@/modules/credentials/wallet-screen";
-export default function Home() { return <WalletScreen overview/>; }
+import { redirect } from "next/navigation";
+
+export default function Home() {
+  redirect("/preprod");
+}

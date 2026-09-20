@@ -3,25 +3,19 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon } from "./icon";
-import { useWallet } from "@/store/wallet";
 
 const navigation = [
-  { href: "/", label: "Overview", icon: "grid" },
-  { href: "/wallet", label: "My credentials", icon: "wallet" },
-  { href: "/verify", label: "Verification", icon: "shield" },
-  { href: "/issuer", label: "Demo issuer", icon: "plus" },
-  { href: "/preprod", label: "Midnight Preprod", icon: "shield" },
+  { href: "/preprod", label: "Credential registry", icon: "shield" },
 ] as const;
 
 export function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { loading, error, retry } = useWallet();
   return <div className="app-shell">
     <a className="skip-link" href="#content">Skip to content</a>
     <header className="wallet-header">
-      <div className="topbar"><Link href="/" className="brand"><span className="brand-mark"><Icon name="id" size={24}/></span>credpass<span className="brand-dot">.</span></Link><div className="wallet-account"><span className="demo-indicator">Encrypted demo storage</span><span className="profile"><span className="avatar">D</span>Demo wallet</span></div></div>
-      <div className="navigation-bar"><nav aria-label="Main navigation">{navigation.map(({ href, label, icon }) => <Link key={href} href={href} className={`nav-link ${pathname === href || (href === "/wallet" && pathname.startsWith("/wallet/")) ? "selected" : ""}`} aria-current={pathname === href ? "page" : undefined}><Icon name={icon}/>{label}</Link>)}</nav><span className="wallet-tagline"><Icon name="lock" size={13}/>Share the answer. Keep the details.</span></div>
+      <div className="topbar"><Link href="/" className="brand"><span className="brand-mark"><Icon name="id" size={24}/></span>credpass<span className="brand-dot">.</span></Link><div className="wallet-account"><span className="demo-indicator">Midnight Preprod</span><span className="profile"><span className="avatar">L</span>Lace wallet</span></div></div>
+      <div className="navigation-bar"><nav aria-label="Main navigation">{navigation.map(({ href, label, icon }) => <Link key={href} href={href} className={`nav-link ${pathname === href ? "selected" : ""}`} aria-current={pathname === href ? "page" : undefined}><Icon name={icon}/>{label}</Link>)}</nav><span className="wallet-tagline"><Icon name="lock" size={13}/>Share the answer. Keep the details.</span></div>
     </header>
-    <main id="content">{pathname === "/preprod" ? children : loading ? <p role="status" className="muted">Loading your stored wallet…</p> : error ? <section className="empty-state"><h1>Wallet storage unavailable</h1><p role="alert">{error}</p><p>No temporary wallet is substituted. Retry loads your saved data.</p><button className="button primary" onClick={retry}>Retry loading wallet</button></section> : children}</main><footer>CredPass · Encrypted demo storage <span>Midnight integration: prototype</span></footer>
+    <main id="content">{children}</main><footer>CredPass · Wallet-bound credentials <span>Midnight Preprod</span></footer>
   </div>;
 }
